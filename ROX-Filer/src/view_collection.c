@@ -1498,7 +1498,7 @@ static void view_collection_autosize(ViewIface *view)
 		t = filer_window->toolbar->allocation.height;
 	if (filer_window->message)
 		t += filer_window->message->allocation.height;
-	if (GTK_WIDGET_VISIBLE(filer_window->minibuffer_area))
+	if (gtk_widget_get_visible(filer_window->minibuffer_area))
 	{
 		GtkRequisition req;
 

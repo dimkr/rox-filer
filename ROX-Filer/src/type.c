@@ -982,7 +982,6 @@ void type_set_handler_dialog(MIME_type *type)
 	g_return_if_fail(type != NULL);
 
 	dialog = GTK_DIALOG(gtk_dialog_new());
-	gtk_dialog_set_has_separator(dialog, FALSE);
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_MOUSE);
 
 	g_object_set_data(G_OBJECT(dialog), "mime_type", type);
@@ -1060,7 +1059,7 @@ void type_set_handler_dialog(MIME_type *type)
 	gtk_dialog_add_button(dialog, GTK_STOCK_CLOSE, GTK_RESPONSE_CANCEL);
 
 	button = button_new_mixed(GTK_STOCK_OK, _("_Use Command"));
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_dialog_add_action_widget(dialog, button, GTK_RESPONSE_OK);
 
 	hbox = gtk_hbox_new(TRUE, 4);

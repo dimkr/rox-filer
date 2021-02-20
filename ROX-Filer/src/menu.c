@@ -1189,14 +1189,14 @@ static void savebox_show(const gchar *action, const gchar *path,
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_relative),
 					     last_symlink_check_relative);
 
-		GTK_WIDGET_UNSET_FLAGS(check_relative, GTK_CAN_FOCUS);
-		gtk_tooltips_set_tip(tooltips, check_relative,
+		gtk_widget_set_can_focus(check_relative, FALSE);
+		gtk_widget_set_tooltip_text(check_relative,
 			_("If on, the symlink will store the path from the "
 			"symlink to the target file. Use this if the symlink "
 			"and the target will be moved together.\n"
 			"If off, the path from the root directory is stored - "
 			"use this if the symlink may move but the target will "
-			"stay put."), NULL);
+			"stay put."));
 		gtk_box_pack_start(GTK_BOX(GTK_DIALOG(savebox)->vbox),
 				check_relative, FALSE, TRUE, 0);
 		gtk_widget_show(check_relative);
@@ -1339,7 +1339,7 @@ static gboolean link_cb(GObject *savebox,
 
 		button = button_new_mixed(GTK_STOCK_YES, _("_Replace"));
 		gtk_widget_show(button);
-		GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+		gtk_widget_set_can_default(button, TRUE);
 		gtk_dialog_add_action_widget(GTK_DIALOG(box),
 					     button, GTK_RESPONSE_OK);
 		gtk_dialog_set_default_response(GTK_DIALOG(box),

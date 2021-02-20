@@ -83,11 +83,6 @@
 #include "gui_support.h"
 #include "support.h"
 
-/* Add all option tooltips to this group */
-static GtkTooltips *option_tooltips = NULL;
-#define OPTION_TIP(widget, tip)	\
-	gtk_tooltips_set_tip(option_tooltips, widget, tip, NULL)
-
 /* The Options window. NULL if not yet created. */
 static GtkWidget *window = NULL;
 
@@ -295,9 +290,6 @@ static void store_backup(gpointer key, gpointer value, gpointer data)
  */
 GtkWidget *options_show(void)
 {
-	if (!option_tooltips)
-		option_tooltips = gtk_tooltips_new();
-
 	/* For debugging
 	if (g_hash_table_size(loading) != 0)
 	{
@@ -612,7 +604,7 @@ static void may_add_tip(GtkWidget *widget, xmlNode *element)
 	tip = g_strstrip(g_strdup(data));
 	g_free(data);
 	if (*tip)
-		OPTION_TIP(widget, _(tip));
+		gtk_widget_set_tooltip_text(widget, _(tip));
 	g_free(tip);
 }
 
@@ -992,17 +984,17 @@ static GtkWidget *build_window_frame(GtkTreeView **tree_view)
 	gtk_box_pack_start(GTK_BOX(tl_vbox), actions, FALSE, TRUE, 0);
 
 	revert_widget = button_new_mixed(GTK_STOCK_UNDO, _("_Revert"));
-	GTK_WIDGET_SET_FLAGS(revert_widget, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(revert_widget, TRUE);
 	gtk_box_pack_start(GTK_BOX(actions), revert_widget, FALSE, TRUE, 0);
 	g_signal_connect(revert_widget, "clicked",
 			 G_CALLBACK(revert_options), NULL);
-	gtk_tooltips_set_tip(option_tooltips, revert_widget,
+	gtk_widget_set_tooltip_text(revert_widget,
 			_("Restore all choices to how they were when the "
-			  "Options box was opened."), NULL);
+			  "Options box was opened."));
 	gtk_widget_set_sensitive(revert_widget, check_anything_changed());
 
 	button = gtk_button_new_from_stock(GTK_STOCK_OK);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_box_pack_start(GTK_BOX(actions), button, FALSE, TRUE, 0);
 	g_signal_connect_swapped(button, "clicked",
 				G_CALLBACK(gtk_widget_destroy), window);
@@ -1014,13 +1006,13 @@ static GtkWidget *build_window_frame(GtkTreeView **tree_view)
 	{
 		string = g_strdup_printf(_("Choices will be saved as:\n%s"),
 					save_path);
-		gtk_tooltips_set_tip(option_tooltips, button, string, NULL);
+		gtk_widget_set_tooltip_text(button, string);
 		g_free(string);
 		g_free(save_path);
 	}
 	else
-		gtk_tooltips_set_tip(option_tooltips, button,
-				_("(saving disabled by CHOICESPATH)"), NULL);
+		gtk_widget_set_tooltip_text(button,
+				_("(saving disabled by CHOICESPATH)"));
 
 	if (tree_view)
 		*tree_view = GTK_TREE_VIEW(tv);
@@ -1531,7 +1523,7 @@ static GList *build_slider(Option *option, xmlNode *node, guchar *label)
 	}
 	else
 		gtk_scale_set_draw_value(GTK_SCALE(slide), FALSE);
-	GTK_WIDGET_UNSET_FLAGS(slide, GTK_CAN_FOCUS);
+	gtk_widget_set_can_focus(slide, FALSE);
 
 	may_add_tip(slide, node);
 

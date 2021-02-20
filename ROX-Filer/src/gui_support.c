@@ -180,7 +180,7 @@ int get_choice(const char *title,
 		else
 			button = gtk_button_new_from_stock(stock);
 
-		GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+		gtk_widget_set_can_default(button, TRUE);
 		gtk_widget_show(button);
 
 		gtk_dialog_add_action_widget(GTK_DIALOG(current_dialog),
@@ -498,7 +498,7 @@ GtkWidget *new_help_button(HelpFunc show_help, gpointer data)
 	gtk_container_add(GTK_CONTAINER(b), icon);
 	g_signal_connect_swapped(b, "clicked", G_CALLBACK(show_help), data);
 
-	GTK_WIDGET_UNSET_FLAGS(b, GTK_CAN_FOCUS);
+	gtk_widget_set_can_focus(b, FALSE);
 
 	return b;
 }
@@ -678,7 +678,7 @@ void wink_widget(GtkWidget *widget)
 
 static gboolean idle_destroy_cb(GtkWidget *widget)
 {
-	gtk_widget_unref(widget);
+	g_object_unref(widget);
 	gtk_widget_destroy(widget);
 	return FALSE;
 }
@@ -686,7 +686,7 @@ static gboolean idle_destroy_cb(GtkWidget *widget)
 /* Destroy the widget in an idle callback */
 void destroy_on_idle(GtkWidget *widget)
 {
-	gtk_widget_ref(widget);
+	g_object_ref(widget);
 	g_idle_add((GSourceFunc) idle_destroy_cb, widget);
 }
 
@@ -819,7 +819,7 @@ void fixed_move_fast(GtkFixed *fixed, GtkWidget *widget, int x, int y)
 
 	gtk_widget_thaw_child_notify(widget);
 
-	if (GTK_WIDGET_VISIBLE(widget) && GTK_WIDGET_VISIBLE(fixed))
+	if (gtk_widget_get_visible(widget) && gtk_widget_get_visible(fixed))
 	{
 		int border_width = GTK_CONTAINER(fixed)->border_width;
 		GtkAllocation child_allocation;
@@ -924,7 +924,7 @@ void tooltip_show(guchar *text)
 /* Call callback(user_data) after a while, unless cancelled.
  * Object is refd now and unref when cancelled / after callback called.
  */
-void tooltip_prime(GtkFunction callback, GObject *object)
+void tooltip_prime(GSourceFunc callback, GObject *object)
 {
 	time_t  now;
 	int	delay;
@@ -937,7 +937,7 @@ void tooltip_prime(GtkFunction callback, GObject *object)
 	g_object_ref(object);
 	tip_timeout = g_timeout_add_full(G_PRIORITY_DEFAULT_IDLE,
 					 delay,
-					 (GSourceFunc) callback,
+					 callback,
 					 object,
 					 g_object_unref);
 }
@@ -1030,7 +1030,7 @@ void radios_add(Radios *radios, const gchar *tip, gint value,
 	gtk_label_set_line_wrap(GTK_LABEL(GTK_BIN(radio)->child), TRUE);
 	gtk_widget_show(radio);
 	if (tip)
-		gtk_tooltips_set_tip(tooltips, radio, tip, NULL);
+		gtk_widget_set_tooltip_text(radio, tip);
 	if (!group)
 		g_signal_connect(G_OBJECT(radio), "destroy",
 				G_CALLBACK(radios_free), radios);
@@ -1165,7 +1165,7 @@ struct _SimpleImage {
 	int	  width, height;
 };
 
-#define SIMPLE_IMAGE(obj) (GTK_CHECK_CAST((obj), \
+#define SIMPLE_IMAGE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), \
 				simple_image_get_type(), SimpleImage))
 
 static void simple_image_finialize(GObject *object)
@@ -1224,7 +1224,7 @@ static void simple_image_class_init(gpointer gclass, gpointer data)
 
 static void simple_image_init(GTypeInstance *object, gpointer gclass)
 {
-	GTK_WIDGET_SET_FLAGS(object, GTK_NO_WINDOW);
+	gtk_widget_set_has_window(object, FALSE);
 }
 
 static GType simple_image_get_type(void)

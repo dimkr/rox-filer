@@ -265,7 +265,7 @@ void filer_window_set_size(FilerWindow *filer_window, int w, int h)
 
 	window = filer_window->window;
 
-	if (GTK_WIDGET_VISIBLE(window))
+	if (gtk_widget_get_visible(window))
 	{
 		gint x, y, m;
 		GtkRequisition	*req = &window->requisition;
@@ -356,7 +356,7 @@ static gint open_filer_window(FilerWindow *filer_window)
 		filer_window->open_timeout = 0;
 	}
 
-	if (!GTK_WIDGET_VISIBLE(filer_window->window))
+	if (!gtk_widget_get_visible(filer_window->window))
 	{
 		display_set_actual_size(filer_window, force_resize);
 		gtk_widget_show(filer_window->window);
@@ -660,20 +660,20 @@ static void may_offer_unmount(FilerWindow *filer_window, char *mount)
 			unmount_mem_btn);
 
 	button = button_new_mixed(ROX_STOCK_MOUNTED, _("No change"));
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_dialog_add_action_widget(GTK_DIALOG(dialog), button,
 					GTK_RESPONSE_CANCEL);
 	gtk_widget_show(button);
 
 	button = button_new_mixed(ROX_STOCK_MOUNT, _("Unmount"));
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_dialog_add_action_widget(GTK_DIALOG(dialog), button,
 					GTK_RESPONSE_OK);
 	gtk_widget_show(button);
 
 	/* We need a better icon, but I can't draw */
 	button = button_new_mixed(GTK_STOCK_UNDO, _("Eject"));
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_dialog_add_action_widget(GTK_DIALOG(dialog), button,
 					ROX_RESPONSE_EJECT);
 	gtk_widget_show(button);
@@ -1790,7 +1790,7 @@ static void filer_add_widgets(FilerWindow *filer_window, const gchar *wm_class)
 
 	hbox = gtk_hbox_new(FALSE, 0);
 	filer_window->view_hbox = GTK_BOX(hbox);
-	gtk_box_pack_start_defaults(GTK_BOX(vbox), hbox);
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
 	/* Add the main View widget */
 	filer_set_view_type(filer_window, filer_window->view_type);
 	/* Put the scrollbar next to the View */
@@ -1820,7 +1820,7 @@ static void filer_add_widgets(FilerWindow *filer_window, const gchar *wm_class)
 				filer_window->thumb_progress, TRUE, TRUE, 0);
 
 		cancel = gtk_button_new_with_label(_("Cancel"));
-		GTK_WIDGET_UNSET_FLAGS(cancel, GTK_CAN_FOCUS);
+		gtk_widget_set_can_focus(cancel, FALSE);
 		gtk_box_pack_start(GTK_BOX(filer_window->thumb_bar),
 				cancel, FALSE, TRUE, 0);
 		g_signal_connect_swapped(cancel, "clicked",
@@ -2309,7 +2309,7 @@ static void filer_next_thumb(GObject *window, const gchar *path)
 
 static void start_thumb_scanning(FilerWindow *filer_window)
 {
-	if (GTK_WIDGET_VISIBLE(filer_window->thumb_bar))
+	if (gtk_widget_get_visible(filer_window->thumb_bar))
 		return;		/* Already scanning */
 
 	gtk_widget_show_all(filer_window->thumb_bar);
@@ -2731,7 +2731,7 @@ gint filer_motion_notify(FilerWindow *filer_window, GdkEventMotion *event)
 
 			tip_item = item;
 			motion_window = event->window;
-			tooltip_prime((GtkFunction) tooltip_activate,
+			tooltip_prime((GSourceFunc) tooltip_activate,
 					G_OBJECT(filer_window->window));
 		}
 	}

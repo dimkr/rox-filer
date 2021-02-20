@@ -91,8 +91,6 @@ const gchar *show_user_message = NULL;
 int home_dir_len;
 const char *home_dir, *app_dir;
 
-GtkTooltips *tooltips = NULL;
-
 #define COPYING								\
 	     N_("Copyright (C) 2005 Thomas Leonard.\n"			\
 		"ROX-Filer comes with ABSOLUTELY NO WARRANTY,\n"	\
@@ -526,8 +524,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	tooltips = gtk_tooltips_new();
-
 	if (show_user)
 		show_user_message = g_strdup_printf(_("Running as user '%s'"),
 						    user_name(euid));
@@ -904,7 +900,7 @@ static GtkWidget *launch_button_new(const char *label, const char *uri,
 			  "Right-click for a list of versions."),
 			slash + 1);
 
-	gtk_tooltips_set_tip(tooltips, button, tip, NULL);
+	gtk_widget_set_tooltip_text(button, tip);
 
 	g_free(tip);
 
@@ -1011,7 +1007,7 @@ static GList *build_make_script(Option *option, xmlNode *node, guchar *label)
 	tip = _("Click to save a script to run ROX-Filer.\n"
 		"If you are using Zero Install you should use 0alias "
 		"instead.");
-	gtk_tooltips_set_tip(tooltips, button, tip, NULL);
+	gtk_widget_set_tooltip_text(button, tip);
 
 	gtk_container_add(GTK_CONTAINER(align), button);
 
