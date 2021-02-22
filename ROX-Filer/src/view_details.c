@@ -835,7 +835,8 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 
 	if (view_details->filer_window->selection_state == GTK_STATE_SELECTED)
 		gtk_widget_grab_focus(widget);
-	// TODO: else ungrab focus
+	else // TODO: is this equivalent to GTK_WIDGET_UNSET_FLAGS(widget, GTK_HAS_FOCUS)?
+		gtk_widget_grab_focus(gtk_widget_get_parent(widget));
 	GTK_WIDGET_CLASS(parent_class)->expose_event(widget, event);
 	if (had_cursor)
 		gtk_widget_grab_focus(widget);
