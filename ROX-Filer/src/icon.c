@@ -101,8 +101,13 @@ static void selection_get(GtkClipboard *primary,
 		       GtkSelectionData *selection_data,
 		       guint      info,
 		       gpointer   data);
-static void remove_items(gpointer data, guint action, GtkWidget *widget);
-static void file_op(gpointer data, guint action, GtkWidget *widget);
+static void remove_items(void);
+static void file_op_shift(void);
+static void file_op_properties(void);
+static void file_op_run_action(void);
+static void file_op_set_icon(void);
+static void file_op_edit(void);
+static void file_op_location(void);
 static void show_rename_box(Icon *icon);
 static void icon_set_selected_int(Icon *icon, gboolean selected);
 static void icon_class_init(gpointer gclass, gpointer data);
@@ -127,24 +132,45 @@ enum {
 
 #undef N_
 #define N_(x) x
-static GtkItemFactoryEntry menu_def[] = {
-{N_("ROX-Filer"),		NULL, NULL, 0, "<Branch>"},
-{">" N_("About ROX-Filer..."),	NULL, menu_rox_help, HELP_ABOUT, "<StockItem>", GTK_STOCK_DIALOG_INFO},
-{">" N_("Show Help Files"),	NULL, menu_rox_help, HELP_DIR, "<StockItem>", GTK_STOCK_HELP},
-{">" N_("Manual"),		NULL, menu_rox_help, HELP_MANUAL, NULL},
-{">",				NULL, NULL, 0, "<Separator>"},
-{">" N_("Options..."),		NULL, menu_show_options, 0, "<StockItem>", GTK_STOCK_PREFERENCES},
-{">" N_("Home Directory"),	NULL, open_home, 0, "<StockItem>", GTK_STOCK_HOME},
-{N_("File"),			NULL, NULL, 0, "<Branch>"},
-{">" N_("Shift Open"),   	NULL, file_op, ACTION_SHIFT, NULL},
-{">" N_("Properties"),    	NULL, file_op, ACTION_PROPERTIES, "<StockItem>", GTK_STOCK_PROPERTIES},
-{">" N_("Set Run Action..."),	NULL, file_op, ACTION_RUN_ACTION, "<StockItem>", GTK_STOCK_EXECUTE},
-{">" N_("Set Icon..."),		NULL, file_op, ACTION_SET_ICON, NULL},
-{N_("Edit Item"),  		NULL, file_op, ACTION_EDIT, "<StockItem>", GTK_STOCK_PROPERTIES},
-{N_("Show Location"),  		NULL, file_op, ACTION_LOCATION, "<StockItem>", GTK_STOCK_JUMP_TO},
-{N_("Remove Item(s)"),		NULL, remove_items, 0, "<StockItem>", GTK_STOCK_REMOVE},
-{"",				NULL, NULL, 0, "<Separator>"},
+static GtkActionEntry menu_def[] = {
+{"ROX-Filer",			NULL,					N_("ROX-Filer"),			NULL, NULL, NULL},
+{"About ROX-Filer...",	GTK_STOCK_DIALOG_INFO,	N_("About ROX-Filer..."),	NULL, NULL, menu_rox_help_about},
+{"Show Help Files",		GTK_STOCK_HELP,			N_("Show Help Files"),		NULL, NULL, menu_rox_help_dir},
+{"Manual",				NULL,					N_("Manual"),				NULL, NULL, menu_rox_manual},
+{"Options",				GTK_STOCK_PREFERENCES,	N_("Options..."),			NULL, NULL, menu_show_options},
+{"Home Directory",		GTK_STOCK_HOME,			N_("Home Directory"),		NULL, NULL, open_home},
+{"File",				NULL,					N_("File"),					NULL, NULL, NULL},
+{"Shift Open",			NULL,					N_("Shift Open"),			NULL, NULL, file_op_shift},
+{"Properties",			GTK_STOCK_PROPERTIES,	N_("Properties"),    		NULL, NULL, file_op_properties},
+{"Set Run Action...",	GTK_STOCK_EXECUTE,		N_("Set Run Action..."),    NULL, NULL, file_op_run_action},
+{"Set Icon...",			NULL,					N_("Set Icon..."),    		NULL, NULL, file_op_set_icon},
+{"Edit Item",			GTK_STOCK_PROPERTIES,	N_("Edit Item"),    		NULL, NULL, file_op_edit},
+{"Show Location",		GTK_STOCK_JUMP_TO,		N_("Show Location"),    	NULL, NULL, file_op_location},
+{"Remove Item(s)",		GTK_STOCK_REMOVE,		N_("Remove Item(s)"),    	NULL, NULL, remove_items},
 };
+
+static const char menu_ui[] = \
+	"<ui>" \
+		"<popup name='icon'>" \
+			"<menu action='ROX-Filer'>" \
+				"<menuitem action='About ROX-Filer...'/>" \
+				"<menuitem action='Show Help Files'/>" \
+				"<menuitem action='Manual'/>" \
+				"<separator/>" \
+				"<menuitem action='Options'>" \
+				"<menuitem action='Home Directory'>" \
+			"</menu>" \
+			"<menu action='File'>" \
+				"<menuitem action='Shift Open'>" \
+				"<menuitem action='Properties'>" \
+				"<menuitem action='Set Run Action...'>" \
+				"<menuitem action='Set Icon...'>" \
+			"</menu>" \
+			"<menuitem action='Edit Item'/>" \
+			"<menuitem action='Show Location'/>" \
+			"<menuitem action='Remove Item(s)'/>" \
+		"</popup>" \
+	"</ui>";
 
 /****************************************************************
  *			EXTERNAL INTERFACE			*
@@ -674,7 +700,7 @@ static void selection_get(GtkClipboard	*primary,
 	gtk_selection_data_set_text(selection_data, text, strlen(text));
 }
 
-static void remove_items(gpointer data, guint action, GtkWidget *widget)
+static void remove_items(void)
 {
 	IconClass	*iclass;
 
@@ -708,7 +734,7 @@ static void remove_items(gpointer data, guint action, GtkWidget *widget)
 	iclass->remove_items();
 }
 
-static void file_op(gpointer data, guint action, GtkWidget *widget)
+static void file_op(guint action)
 {
 	if (!menu_icon)
 	{
@@ -745,6 +771,36 @@ static void file_op(gpointer data, guint action, GtkWidget *widget)
 						menu_icon->path);
 			break;
 	}
+}
+
+static void file_op_shift(void)
+{
+	file_op(ACTION_SHIFT);
+}
+
+static void file_op_properties(void)
+{
+	file_op(ACTION_PROPERTIES);
+}
+
+static void file_op_run_action(void)
+{
+	file_op(ACTION_RUN_ACTION);
+}
+
+static void file_op_set_icon(void)
+{
+	file_op(ACTION_SET_ICON);
+}
+
+static void file_op_edit(void)
+{
+	file_op(ACTION_EDIT);
+}
+
+static void file_op_location(void)
+{
+	file_op(ACTION_LOCATION);
 }
 
 static void edit_response(GtkWidget *dialog, gint response, gpointer data)
@@ -1422,30 +1478,25 @@ static void icon_wink(Icon *icon)
 /* Sets icon_menu */
 static void create_menu(void)
 {
-	GList		*items;
-	guchar		*tmp;
-	GtkItemFactory	*item_factory;
+	guchar			*tmp;
+	GtkUIManager	*item_factory;
 
 	g_return_if_fail(icon_menu == NULL);
 
 	item_factory = menu_create(menu_def,
 				sizeof(menu_def) / sizeof(*menu_def),
-				 "<icon>", NULL);
+				 "icon", NULL, menu_ui);
 
-	tmp = g_strconcat("<icon>/", _("File"), NULL);
-	icon_menu = gtk_item_factory_get_widget(item_factory, "<icon>");
-	icon_file_menu = gtk_item_factory_get_widget(item_factory, tmp);
+	tmp = g_strconcat("/ui/icon/", _("File"), NULL);
+	icon_menu = gtk_ui_manager_get_widget(item_factory, "/ui/icon");
+	icon_file_menu = gtk_ui_manager_get_widget(item_factory, tmp);
 	g_free(tmp);
 
 	/* File '' label... */
-	items = gtk_container_get_children(GTK_CONTAINER(icon_menu));
-	icon_file_item = GTK_BIN(g_list_nth(items, 1)->data)->child;
-	g_list_free(items);
+	icon_file_item = gtk_ui_manager_get_widget(item_factory, "/ui/icon/File");
 
 	/* Shift Open... label */
-	items = gtk_container_get_children(GTK_CONTAINER(icon_file_menu));
-	file_shift_item = GTK_BIN(items->data)->child;
-	g_list_free(items);
+	file_shift_item = gtk_ui_manager_get_widget(item_factory, "/ui/icon/File/Shift Open");
 
 	g_signal_connect(icon_menu, "unmap_event",
 			G_CALLBACK(menu_closed), NULL);

@@ -107,7 +107,10 @@ static void drag_data_received(GtkWidget      		*widget,
 			gpointer		user_data);
 static gboolean spring_now(gpointer data);
 static void spring_win_destroyed(GtkWidget *widget, gpointer data);
-static void menuitem_response(gpointer data, guint action, GtkWidget *widget);
+static void menuitem_response_copy(void);
+static void menuitem_response_move(void);
+static void menuitem_response_link_rel(void);
+static void menuitem_response_link_abs(void);
 static void prompt_action(GList *paths, gchar *dest);
 
 typedef enum {
@@ -119,12 +122,21 @@ typedef enum {
 
 #undef N_
 #define N_(x) x
-static GtkItemFactoryEntry menu_def[] = {
-{N_("Copy"),		NULL, menuitem_response, MENU_COPY, 	NULL},
-{N_("Move"),		NULL, menuitem_response, MENU_MOVE, 	NULL},
-{N_("Link (relative)"),	NULL, menuitem_response, MENU_LINK_REL, NULL},
-{N_("Link (absolute)"),	NULL, menuitem_response, MENU_LINK_ABS,	NULL},
+static GtkActionEntry menu_def[] = {
+{"Copy",			NULL, 	N_("Copy"),				NULL, NULL, menuitem_response_copy},
+{"Move",			NULL,	N_("Move"),				NULL, NULL, menuitem_response_move},
+{"Link (relative)",	NULL,	N_("Link (relative)"),	NULL, NULL, menuitem_response_link_rel},
+{"Link (absolute)",	NULL,	N_("Link (absolute)"),	NULL, NULL, menuitem_response_link_abs},
 };
+static const char menu_ui[] = \
+	"<ui>" \
+		"<popup name='dnd'>" \
+			"<menuitem action='Copy'/>" \
+			"<menuitem action='Move'/>" \
+			"<menuitem action='Link (relative)'/>" \
+			"<menuitem action='Link (absolute)'/>" \
+		"</popup>" \
+	"</ui>";
 static GtkWidget *dnd_menu = NULL;
 
 /* Possible values for drop_dest_type (can also be NULL).
@@ -1051,7 +1063,7 @@ static void got_uri_list(GtkWidget 		*widget,
 }
 
 /* Called when an item from the ACTION_ASK menu is chosen */
-static void menuitem_response(gpointer data, guint action, GtkWidget *widget)
+static void menuitem_response(guint action)
 {
 	if (action == MENU_MOVE)
 		action_move(prompt_local_paths, prompt_dest_path, NULL, -1);
@@ -1061,6 +1073,26 @@ static void menuitem_response(gpointer data, guint action, GtkWidget *widget)
 		action_link(prompt_local_paths, prompt_dest_path, NULL, TRUE);
 	else if (action == MENU_LINK_ABS)
 		action_link(prompt_local_paths, prompt_dest_path, NULL, FALSE);
+}
+
+static void menuitem_response_move(void)
+{
+	return menuitem_response(MENU_MOVE);
+}
+
+static void menuitem_response_copy(void)
+{
+	return menuitem_response(MENU_COPY);
+}
+
+static void menuitem_response_link_rel(void)
+{
+	return menuitem_response(MENU_LINK_REL);
+}
+
+static void menuitem_response_link_abs(void)
+{
+	return menuitem_response(MENU_LINK_ABS);
 }
 
 /* When some local files are dropped somewhere with ACTION_ASK, this
@@ -1085,12 +1117,12 @@ static void prompt_action(GList *paths, gchar *dest)
 
 	if (!dnd_menu)
 	{
-		GtkItemFactory	*item_factory;
+		GtkUIManager	*item_factory;
 
 		item_factory = menu_create(menu_def,
 				sizeof(menu_def) / sizeof(*menu_def),
-				"<dnd>", NULL);
-		dnd_menu = gtk_item_factory_get_widget(item_factory, "<dnd>");
+				"dnd", NULL, menu_ui);
+		dnd_menu = gtk_ui_manager_get_widget(item_factory, "/ui/dnd");
 	}
 
 	/* Shade 'Set Icon' if there are multiple files */
