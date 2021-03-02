@@ -32,7 +32,6 @@ typedef enum
 /* Numbers used in options */
 typedef enum
 {
-	VIEW_TYPE_COLLECTION = 0,	/* Icons view */
 	VIEW_TYPE_DETAILS = 1		/* TreeView details list */
 } ViewType;
 

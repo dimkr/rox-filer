@@ -65,11 +65,9 @@
 #include "action.h"
 #include "i18n.h"
 #include "remote.h"
-#include "pinboard.h"
 #include "run.h"
 #include "toolbar.h"
 #include "bind.h"
-#include "panel.h"
 #include "session.h"
 #include "minibuffer.h"
 #include "xtypes.h"
@@ -200,7 +198,6 @@ static void child_died(int signum);
 static void child_died_callback(void);
 static void wake_up_cb(gpointer data, gint source, GdkInputCondition condition);
 static void xrandr_size_change(GdkScreen *screen, gpointer user_data);
-static void add_default_panel_and_pinboard(xmlNodePtr body);
 static GList *build_launch(Option *option, xmlNode *node, guchar *label);
 static GList *build_make_script(Option *option, xmlNode *node, guchar *label);
 
@@ -336,10 +333,6 @@ int main(int argc, char **argv)
 
 	option_add_int(&o_override_redirect, "override_redirect", FALSE);
 
-	option_add_int(&o_session_panel_or_pin, "session_panel_or_pin",
-		       SESSION_BOTH);
-	option_add_string(&o_session_pinboard_name, "session_pinboard_name",
-			  "Default");
 	option_register_widget("launch", build_launch);
 	option_register_widget("make-script", build_make_script);
 
@@ -358,21 +351,6 @@ int main(int argc, char **argv)
 	 * otherwise we report an error for Gtk's options.
 	 */
 	gtk_init(&argc, &argv);
-	/* Set a default style for the collection widget */
-	gtk_rc_parse_string("style \"rox-default-collection-style\" {\n"
-		"  bg[NORMAL] = \"#f3f3f3\"\n"
-		"  fg[NORMAL] = \"#000000\"\n"
-		"  bg[INSENSITIVE] = \"#bfbfbf\"\n"
-		"  fg[INSENSITIVE] = \"#000000\"\n"
-		"}\n"
-		"style \"rox-default-pinboard-style\" {\n"
-		"  bg[NORMAL] = \"#666666\"\n"
-		"}\n"
-		"widget \"rox-pinboard\" style : gtk "
-		"\"rox-default-pinboard-style\"\n"
-
-		"class \"Collection\" style : gtk "
-		"\"rox-default-collection-style\"\n");
 
 	g_signal_connect(gdk_screen_get_default(), "size-changed",
 			 G_CALLBACK(xrandr_size_change), NULL);
@@ -448,27 +426,10 @@ int main(int argc, char **argv)
 			case 'r':
 			case 't':
 			case 'B':
-				/* Argument is a leaf (or starts with /) */
-				soap_add(body, "Panel", "Name", VALUE,
-					 "Side", c == 'l' ? "Left" :
-						 c == 'r' ? "Right" :
-						 c == 't' ? "Top" :
-						 c == 'B' ? "Bottom" :
-						 "Unkown");
 				break;
 			case 'b':
-				/* Argument is a leaf (or starts with /) */
-				if (*VALUE)
-					soap_add(body, "Panel", "Name", VALUE,
-							NULL, NULL);
-				else
-					soap_add(body, "Panel",
-							"Side", "Bottom",
-							NULL, NULL);
 				break;
 			case 'p':
-				soap_add(body, "Pinboard",
-						"Name", VALUE, NULL, NULL);
 				break;
 			case 'u':
 				show_user = TRUE;
@@ -511,7 +472,6 @@ int main(int argc, char **argv)
 
 			case 'S':
 				new_copy = TRUE;
-				add_default_panel_and_pinboard(body);
 				session_auto_respawn = TRUE;
 				break;
 
@@ -608,8 +568,6 @@ int main(int argc, char **argv)
 	type_init();
 	action_init();
 
-	pinboard_init();
-	panel_init();
 	run_init();
 
 	/* Let everyone update */
@@ -821,58 +779,6 @@ static void wake_up_cb(gpointer data, gint source, GdkInputCondition condition)
 static void xrandr_size_change(GdkScreen *screen, gpointer user_data)
 {
 	gui_store_screen_geometry(screen);
-
-	panel_update_size();
-	pinboard_update_size();
-}
-
-static void add_default_panel_and_pinboard(xmlNodePtr body)
-{
-	const char *name;
-
-	if (o_session_panel_or_pin.int_value != SESSION_PANEL_ONLY)
-	{
-		name=o_session_pinboard_name.value;
-		if (!name[0])
-			name="Default";
-		soap_add(body, "Pinboard","Name", name, NULL, NULL);
-	}
-
-	if (o_session_panel_or_pin.int_value != SESSION_PINBOARD_ONLY)
-	{
-		gboolean use_old_option = TRUE;
-		GIOChannel *fp = NULL;
-		GError *err = NULL;
-		char *line = NULL;
-		gsize term;
-		char *filename = choices_find_xdg_path_load("panels",
-				"ROX-Filer", "rox.sourceforge.net");
-
-		if (filename)
-			fp = g_io_channel_new_file(filename, "r", &err);
-		while (fp && g_io_channel_read_line(fp, &line, NULL, &term, &err) ==
-				G_IO_STATUS_NORMAL)
-		{
-			if (line && (line[term] = 0, line[0]))
-			{
-				soap_add(body, "Panel", "Name", line, NULL, NULL);
-				use_old_option = FALSE;
-			}
-		}
-		if (err)
-		{
-			g_critical(_("Unable to read '%s': %s"),
-					filename, err->message);
-			g_error_free(err);
-		}
-		if (fp)
-			g_io_channel_shutdown(fp, FALSE, NULL);
-		if (use_old_option)
-		{
-			soap_add(body, "Panel", "Name", "Default", NULL, NULL);
-		}
-		g_free(filename);
-	}
 }
 
 static GtkWidget *launch_button_new(const char *label, const char *uri,

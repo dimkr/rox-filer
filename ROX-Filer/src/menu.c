@@ -53,7 +53,6 @@
 #include "mount.h"
 #include "minibuffer.h"
 #include "i18n.h"
-#include "pinboard.h"
 #include "dir.h"
 #include "diritem.h"
 #include "appmenu.h"
@@ -62,7 +61,6 @@
 #include "view_iface.h"
 #include "display.h"
 #include "bookmarks.h"
-#include "panel.h"
 #include "bulk_rename.h"
 #include "xtypes.h"
 #include "log.h"
@@ -138,12 +136,9 @@ static GList *set_keys_button(Option *option, xmlNode *node, guchar *label);
 
 /* Note that for most of these callbacks none of the arguments are used. */
 
-static void view_type(gpointer data, guint action, GtkWidget *widget);
-
 /* (action used in these three - DetailsType) */
 static void change_size(gpointer data, guint action, GtkWidget *widget);
 static void change_size_auto(gpointer data, guint action, GtkWidget *widget);
-static void set_with(gpointer data, guint action, GtkWidget *widget);
 
 static void set_sort(gpointer data, guint action, GtkWidget *widget);
 static void reverse_sort(gpointer data, guint action, GtkWidget *widget);
@@ -209,14 +204,6 @@ static GtkWidget	*filer_xattrs;	/* Extended attributes item */
 
 static GtkItemFactoryEntry filer_menu_def[] = {
 {N_("Display"),			NULL, NULL, 0, "<Branch>"},
-{">" N_("Icons View"),   	NULL, view_type, VIEW_TYPE_COLLECTION, NULL},
-{">" N_("Icons, With..."),	NULL, NULL, 0, "<Branch>"},
-{">>" N_("Sizes"),		NULL, set_with, DETAILS_SIZE, NULL},
-{">>" N_("Permissions"),	NULL, set_with, DETAILS_PERMISSIONS, NULL},
-{">>" N_("Types"),		NULL, set_with, DETAILS_TYPE, NULL},
-{">>" N_("Times"),		NULL, set_with, DETAILS_TIMES, NULL},
-{">" N_("List View"),   	NULL, view_type, VIEW_TYPE_DETAILS, "<StockItem>", ROX_STOCK_SHOW_DETAILS},
-{">",				NULL, NULL, 0, "<Separator>"},
 {">" N_("Bigger Icons"),   	"equal", change_size, 1, "<StockItem>", GTK_STOCK_ZOOM_IN},
 {">" N_("Smaller Icons"),   	"minus", change_size, -1, "<StockItem>", GTK_STOCK_ZOOM_OUT},
 {">" N_("Automatic"),   	NULL, change_size_auto, 0, "<ToggleItem>"},
@@ -981,20 +968,6 @@ void menu_show_shift_action(GtkWidget *menu_item, DirItem *item, gboolean next)
 
 /* Actions */
 
-static void view_type(gpointer data, guint action, GtkWidget *widget)
-{
-	ViewType view_type = (ViewType) action;
-
-	g_return_if_fail(window_with_focus != NULL);
-
-	if (view_type == VIEW_TYPE_COLLECTION)
-		display_set_layout(window_with_focus,
-				window_with_focus->display_style_wanted,
-				DETAILS_NONE, FALSE);
-
-	filer_set_view_type(window_with_focus, (ViewType) action);
-}
-
 static void change_size(gpointer data, guint action, GtkWidget *widget)
 {
 	g_return_if_fail(window_with_focus != NULL);
@@ -1016,18 +989,6 @@ static void change_size_auto(gpointer data, guint action, GtkWidget *widget)
 	else
 		display_set_layout(window_with_focus, AUTO_SIZE_ICONS,
 				   window_with_focus->details_type, FALSE);
-}
-
-static void set_with(gpointer data, guint action, GtkWidget *widget)
-{
-	DisplayStyle size;
-
-	g_return_if_fail(window_with_focus != NULL);
-
-	size = window_with_focus->display_style_wanted;
-
-	filer_set_view_type(window_with_focus, VIEW_TYPE_COLLECTION);
-	display_set_layout(window_with_focus, size, action, FALSE);
 }
 
 static void set_sort(gpointer data, guint action, GtkWidget *widget)
