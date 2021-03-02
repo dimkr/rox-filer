@@ -19,7 +19,6 @@
 
 typedef struct _Radios Radios;
 
-extern GdkFont	   	*fixed_font;
 extern gint		screen_width, screen_height;
 
 /* Useful atoms (set by gui_support_init()) */ 
