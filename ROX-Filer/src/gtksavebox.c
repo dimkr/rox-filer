@@ -31,6 +31,7 @@
 #include <errno.h>
 
 #include "gdk/gdkkeysyms.h"
+#include "gdk/gdkkeysyms-compat.h"
 
 #include "gtksavebox.h"
 #include "gtk/gtkwidget.h"

@@ -44,6 +44,7 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>		/* For rox_x_error */
+#include <gdk/gdkkeysyms-compat.h>
 
 #include "global.h"
 
