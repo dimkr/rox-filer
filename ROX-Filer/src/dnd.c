@@ -1354,7 +1354,7 @@ void dnd_motion_grab_pointer(void)
 {
 	g_return_if_fail(motion_widget != NULL);
 
-	gdk_pointer_grab(motion_gtk_widget_get_window(widget), FALSE,
+	gdk_pointer_grab(gtk_widget_get_window(motion_widget), FALSE,
 			GDK_POINTER_MOTION_MASK |
 			GDK_BUTTON_RELEASE_MASK,
 			FALSE, NULL, GDK_CURRENT_TIME);

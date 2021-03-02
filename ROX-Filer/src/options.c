@@ -552,12 +552,12 @@ static void toggle_active_font(GtkToggleButton *toggle, Option *option)
 
 	if (gtk_toggle_button_get_active(toggle))
 	{
-		gtk_widget_set_sensitive(option->gtk_widget_get_parent(widget), TRUE);
+		gtk_widget_set_sensitive(gtk_widget_get_parent(option->widget), TRUE);
 		gtk_label_set_text(GTK_LABEL(option->widget), "Sans 12");
 	}
 	else
 	{
-		gtk_widget_set_sensitive(option->gtk_widget_get_parent(widget), FALSE);
+		gtk_widget_set_sensitive(gtk_widget_get_parent(option->widget), FALSE);
 		gtk_label_set_text(GTK_LABEL(option->widget),
 				   _("(use default)"));
 	}
@@ -1275,7 +1275,7 @@ static void update_font(Option *option)
 	if (active)
 	{
 		gtk_toggle_button_set_active(active, have_font);
-		gtk_widget_set_sensitive(option->gtk_widget_get_parent(widget), have_font);
+		gtk_widget_set_sensitive(gtk_widget_get_parent(option->widget), have_font);
 	}
 
 	gtk_label_set_text(GTK_LABEL(option->widget),
@@ -1761,7 +1761,7 @@ static void button_patch_set_colour(GtkWidget *button, GdkColor *colour)
 	GtkStyle   	*style;
 	GtkWidget	*patch;
 
-	patch = gtk_bin_get_child(button);
+	patch = gtk_bin_get_child(GTK_BIN(button));
 
 	style = gtk_style_copy(GTK_WIDGET(patch)->style);
 	style->bg[GTK_STATE_NORMAL].red = colour->red;
