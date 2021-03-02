@@ -53,10 +53,6 @@ gint		monitor_width, monitor_height;
 MonitorAdjacent *monitor_adjacent;
 
 static GdkAtom xa_cardinal;
-GdkAtom xa__NET_WORKAREA = GDK_NONE;
-GdkAtom xa__NET_WM_DESKTOP = GDK_NONE;
-GdkAtom xa__NET_CURRENT_DESKTOP = GDK_NONE;
-GdkAtom xa__NET_NUMBER_OF_DESKTOPS = GDK_NONE;
 
 static GtkWidget *current_dialog = NULL;
 
@@ -67,7 +63,6 @@ static gint tip_timeout = 0;	/* When primed */
 /* Static prototypes */
 static void run_error_info_dialog(GtkMessageType type, const char *message,
 				  va_list args);
-static GType simple_image_get_type(void);
 static void gui_get_monitor_adjacent(int monitor, MonitorAdjacent *adj);
 
 void gui_store_screen_geometry(GdkScreen *screen)
@@ -117,14 +112,6 @@ void gui_store_screen_geometry(GdkScreen *screen)
 void gui_support_init()
 {
 	gpointer klass;
-
-	xa_cardinal = gdk_atom_intern("CARDINAL", FALSE);
-        xa__NET_WORKAREA = gdk_atom_intern("_NET_WORKAREA", FALSE);
-        xa__NET_WM_DESKTOP = gdk_atom_intern("_NET_WM_DESKTOP", FALSE);
-        xa__NET_CURRENT_DESKTOP = gdk_atom_intern("_NET_CURRENT_DESKTOP",
-                                                  FALSE);
-        xa__NET_NUMBER_OF_DESKTOPS = gdk_atom_intern("_NET_NUMBER_OF_DESKTOPS",
-                                                     FALSE);
 
 	gui_store_screen_geometry(gdk_screen_get_default());
 
@@ -271,153 +258,6 @@ gboolean get_cardinal_property(GdkWindow *window, GdkAtom prop, gulong length,
         *actual_length=act_length/sizeof(gulong);
 
         return ok;
-}
-
-int get_current_desktop(void)
-{
-        gint act_len;
-        gulong current;
-        Window root=GDK_ROOT_WINDOW();
-        GdkWindow *gdk_root=gdk_window_foreign_new(root);
-        int desk=0;
-
-        if(get_cardinal_property(gdk_root, xa__NET_CURRENT_DESKTOP, 1,
-                                 &current, &act_len) && act_len==1)
-                desk=(int) current;
-
-        return desk;
-}
-
-int get_number_of_desktops(void)
-{
-        gint act_len;
-        gulong num;
-        Window root=GDK_ROOT_WINDOW();
-        GdkWindow *gdk_root=gdk_window_foreign_new(root);
-        int desks=1;
-
-        if(get_cardinal_property(gdk_root, xa__NET_NUMBER_OF_DESKTOPS, 1,
-                                 &num, &act_len) && act_len==1)
-                desks=(int) num;
-
-        return desks;
-}
-
-/* Get the working area for the desktop, excluding things like the Gnome
- * panels. */
-void get_work_area(int *x, int *y, int *width, int *height)
-{
-        gint act_len;
-        gulong *work_area;
-        Window root=GDK_ROOT_WINDOW();
-        GdkWindow *gdk_root=gdk_window_foreign_new(root);
-        int x0, y0, w0, h0;
-        int idesk, ndesk, nval;
-
-        idesk=get_current_desktop();
-        ndesk=get_number_of_desktops();
-        nval=4*ndesk;
-        work_area=g_new(gulong, nval);
-
-        if(get_cardinal_property(gdk_root, xa__NET_WORKAREA, nval,
-                                         work_area, &act_len) &&
-           act_len==nval)
-        {
-                x0 = work_area[idesk*4+0];
-                y0 = work_area[idesk*4+1];
-                w0 = work_area[idesk*4+2];
-                h0 = work_area[idesk*4+3];
-        }
-        else
-        {
-                x0 = y0 = 0;
-                w0 = screen_width;
-                h0 = screen_height;
-        }
-
-        g_free(work_area);
-
-        if(x)
-                *x = x0;
-        if(y)
-                *y = y0;
-        if(width)
-                *width = w0;
-        if(height)
-                *height = h0;
-}
-
-/* NB: Also used for pinned icons.
- * TODO: Set the level here too.
- */
-void make_panel_window(GtkWidget *widget)
-{
-	static gboolean need_init = TRUE;
-	static GdkAtom xa_state, xa_atom, xa_hints, xa_win_hints;
-	GdkWindow *window = widget->window;
-	long wm_hints_values[] = {1, False, 0, 0, 0, 0, 0, 0};
-	GdkAtom	wm_protocols[2];
-
-	g_return_if_fail(window != NULL);
-
-	if (o_override_redirect.int_value)
-	{
-		gdk_window_set_override_redirect(window, TRUE);
-		return;
-	}
-
-	if (need_init)
-	{
-		xa_win_hints = gdk_atom_intern("_WIN_HINTS", FALSE);
-		xa_state = gdk_atom_intern("_WIN_STATE", FALSE);
-		xa_atom = gdk_atom_intern("ATOM", FALSE);
-		xa_hints = gdk_atom_intern("WM_HINTS", FALSE);
-
-		need_init = FALSE;
-	}
-
-	gdk_window_set_decorations(window, 0);
-	gdk_window_set_functions(window, 0);
-	gtk_window_set_resizable(GTK_WINDOW(widget), FALSE);
-
-	/* Don't hide panel/pinboard windows initially (WIN_STATE_HIDDEN).
-	 * Needed for IceWM - Christopher Arndt <chris.arndt@web.de>
-	 */
-	set_cardinal_property(window, xa_state,
-			WIN_STATE_STICKY |
-			WIN_STATE_FIXED_POSITION | WIN_STATE_ARRANGE_IGNORE);
-
-	set_cardinal_property(window, xa_win_hints,
-			WIN_HINTS_SKIP_FOCUS | WIN_HINTS_SKIP_WINLIST |
-			WIN_HINTS_SKIP_TASKBAR);
-
-	/* Appear on all workspaces */
-	set_cardinal_property(window, xa__NET_WM_DESKTOP, 0xffffffff);
-
-	gdk_property_change(window, xa_hints, xa_hints, 32,
-			GDK_PROP_MODE_REPLACE, (guchar *) wm_hints_values,
-			sizeof(wm_hints_values) / sizeof(long));
-
-	wm_protocols[0] = gdk_atom_intern("WM_DELETE_WINDOW", FALSE);
-	wm_protocols[1] = gdk_atom_intern("_NET_WM_PING", FALSE);
-	gdk_property_change(window,
-			gdk_atom_intern("WM_PROTOCOLS", FALSE), xa_atom, 32,
-			GDK_PROP_MODE_REPLACE, (guchar *) wm_protocols,
-			sizeof(wm_protocols) / sizeof(GdkAtom));
-
-	gdk_window_set_skip_taskbar_hint(window, TRUE);
-	gdk_window_set_skip_pager_hint(window, TRUE);
-
-	if (g_object_class_find_property(G_OBJECT_GET_CLASS(widget),
-					"accept_focus"))
-	{
-		GValue vfalse = { 0, };
-		g_value_init(&vfalse, G_TYPE_BOOLEAN);
-		g_value_set_boolean(&vfalse, FALSE);
-		g_object_set_property(G_OBJECT(widget),
-					"accept_focus", &vfalse);
-		g_value_unset(&vfalse);
-	}
 }
 
 static gboolean error_idle_cb(gpointer data)
@@ -1149,125 +989,6 @@ GList *uri_list_to_glist(const char *uri_list)
 	}
 
 	return list;
-}
-
-typedef struct _SimpleImageClass SimpleImageClass;
-typedef struct _SimpleImage SimpleImage;
-
-struct _SimpleImageClass {
-	GtkWidgetClass parent;
-};
-
-struct _SimpleImage {
-	GtkWidget widget;
-
-	GdkPixbuf *pixbuf;
-	int	  width, height;
-};
-
-#define SIMPLE_IMAGE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), \
-				simple_image_get_type(), SimpleImage))
-
-static void simple_image_finialize(GObject *object)
-{
-	SimpleImage *image = SIMPLE_IMAGE(object);
-
-	g_object_unref(G_OBJECT(image->pixbuf));
-	image->pixbuf = NULL;
-}
-
-static void simple_image_size_request(GtkWidget      *widget,
-				      GtkRequisition *requisition)
-{
-	SimpleImage *image = (SimpleImage *) widget;
-
-	requisition->width = image->width;
-	requisition->height = image->height;
-}
-
-/* Render a pixbuf without messing up the clipping */
-void render_pixbuf(GdkPixbuf *pixbuf, GdkDrawable *target, GdkGC *gc,
-		   int x, int y, int width, int height)
-{
-	gdk_draw_pixbuf(target, gc, pixbuf, 0, 0, x, y, width, height,
-		        GDK_RGB_DITHER_NORMAL, 0, 0);
-
-}
-
-static gint simple_image_expose(GtkWidget *widget, GdkEventExpose *event)
-{
-	SimpleImage *image = (SimpleImage *) widget;
-	int x;
-
-	gdk_gc_set_clip_region(widget->style->black_gc, event->region);
-
-	x = widget->allocation.x +
-		(widget->allocation.width - image->width) / 2;
-
-	render_pixbuf(image->pixbuf, widget->window, widget->style->black_gc,
-			x, widget->allocation.y,
-			image->width, image->height);
-
-	gdk_gc_set_clip_region(widget->style->black_gc, NULL);
-	return FALSE;
-}
-
-static void simple_image_class_init(gpointer gclass, gpointer data)
-{
-	GObjectClass *object = (GObjectClass *) gclass;
-	GtkWidgetClass *widget = (GtkWidgetClass *) gclass;
-
-	object->finalize = simple_image_finialize;
-	widget->size_request = simple_image_size_request;
-	widget->expose_event = simple_image_expose;
-}
-
-static void simple_image_init(GTypeInstance *object, gpointer gclass)
-{
-	gtk_widget_set_has_window(object, FALSE);
-}
-
-static GType simple_image_get_type(void)
-{
-	static GType type = 0;
-
-	if (!type)
-	{
-		static const GTypeInfo info =
-		{
-			sizeof (SimpleImageClass),
-			NULL,			/* base_init */
-			NULL,			/* base_finalise */
-			simple_image_class_init,
-			NULL,			/* class_finalise */
-			NULL,			/* class_data */
-			sizeof(SimpleImage),
-			0,			/* n_preallocs */
-			simple_image_init,
-		};
-
-		type = g_type_register_static(gtk_widget_get_type(),
-						"SimpleImage", &info, 0);
-	}
-
-	return type;
-}
-
-GtkWidget *simple_image_new(GdkPixbuf *pixbuf)
-{
-	SimpleImage *image;
-
-	g_return_val_if_fail(pixbuf != NULL, NULL);
-
-	image = g_object_new(simple_image_get_type(), NULL);
-
-	image->pixbuf = pixbuf;
-	g_object_ref(G_OBJECT(pixbuf));
-
-	image->width = gdk_pixbuf_get_width(pixbuf);
-	image->height = gdk_pixbuf_get_height(pixbuf);
-
-	return GTK_WIDGET(image);
 }
 
 /* Whether a line l1 long starting from n1 overlaps a line l2 from n2 */

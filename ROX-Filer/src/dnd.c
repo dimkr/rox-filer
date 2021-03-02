@@ -45,7 +45,6 @@
 #include "support.h"
 #include "options.h"
 #include "run.h"
-#include "pinboard.h"
 #include "dir.h"
 #include "diritem.h"
 #include "usericons.h"
@@ -71,14 +70,6 @@ gint motion_buttons_pressed = 0;
 
 /* Static prototypes */
 static void set_xds_prop(GdkDragContext *context, const char *text);
-static void desktop_drag_data_received(GtkWidget      		*widget,
-				GdkDragContext  	*context,
-				gint            	x,
-				gint            	y,
-				GtkSelectionData 	*selection_data,
-				guint               	info,
-				guint32             	time,
-				FilerWindow		*filer_window);
 static void got_data_xds_reply(GtkWidget 		*widget,
 		  		GdkDragContext 		*context,
 				GtkSelectionData 	*selection_data,
@@ -477,22 +468,6 @@ void make_drop_target(GtkWidget *widget, GtkDestDefaults defaults)
 			G_CALLBACK(drag_data_received), NULL);
 }
 
-/* Like drag_set_dest, but for a pinboard-type widget */
-void drag_set_pinboard_dest(GtkWidget *widget)
-{
-	GtkTargetEntry 	target_table[] = {
-		{"text/uri-list", 0, TARGET_URI_LIST},
-	};
-
-	gtk_drag_dest_set(widget,
-			  GTK_DEST_DEFAULT_DROP,
-			  target_table,
-			  sizeof(target_table) / sizeof(*target_table),
-			  GDK_ACTION_LINK);
-	g_signal_connect(widget, "drag_data_received",
-			    G_CALLBACK(desktop_drag_data_received), NULL);
-}
-
 /* item is the item the file is held over, NULL for directory background.
  * 'item' may be NULL on exit if the drop should be treated as onto the
  * background. Disallow drags to a selected icon before calling this.
@@ -645,67 +620,6 @@ static gboolean drag_drop(GtkWidget 	  *widget,
 		gtk_drag_get_data(widget, context, target, time);
 
 	return TRUE;
-}
-
-/* Called when a text/uri-list arrives */
-static void desktop_drag_data_received(GtkWidget      	*widget,
-				       GdkDragContext  	*context,
-				       gint            	x,
-				       gint            	y,
-				       GtkSelectionData *selection_data,
-				       guint            info,
-				       guint32          time,
-				       FilerWindow	*filer_window)
-{
-	GList	*uris, *next;
-	char *error_example = NULL;
-	gint dx, dy;
-
-	if (!selection_data->data)
-	{
-		/* Timeout? */
-		return;
-	}
-
-	if (pinboard_drag_in_progress)
-	{
-		pinboard_move_icons();
-		return;
-	}
-
-	gdk_window_get_position(widget->window, &dx, &dy);
-	x += dx;
-	y += dy;
-
-	uris = uri_list_to_glist(selection_data->data);
-
-	for (next = uris; next; next = next->next)
-	{
-		guchar	*path;
-
-		path = get_local_path((EscapedPath *) next->data);
-		if (path)
-		{
-			pinboard_pin(path, NULL, x, y, NULL);
-			x += 64;
-			g_free(path);
-		}
-		else if (!error_example)
-			error_example = g_strdup(next->data);
-
-		g_free(next->data);
-	}
-
-	if (uris)
-		g_list_free(uris);
-
-	if (error_example)
-	{
-		delayed_error(_("Failed to add some items to the pinboard, "
-			"because they are on a remote machine. For example:\n"
-			"\n%s"), error_example);
-		g_free(error_example);
-	}
 }
 
 /* Convert Mozilla's text/x-moz-uri into a text/uri-list */

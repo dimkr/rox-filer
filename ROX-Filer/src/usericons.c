@@ -50,7 +50,6 @@
 #include "display.h"
 #include "xml.h"
 #include "dropbox.h"
-#include "icon.h"
 
 #define SET_MEDIA 2
 #define SET_TYPE 1
@@ -173,7 +172,6 @@ static gboolean create_diricon(const guchar *filepath, const guchar *iconpath)
 		return FALSE;
 
 	dir_check_this(filepath);
-	icons_may_update(filepath);
 
 	return TRUE;
 }
@@ -249,10 +247,7 @@ static void clear_icon(DropBox *drop_box, GObject *dialog)
 				delayed_error(_("Can't delete '%s':\n%s"),
 						path, g_strerror(errno));
 			else
-			{
 				dir_check_this(pathname);
-				icons_may_update(pathname);
-			}
 		}
 		g_free(tmp);
 	}

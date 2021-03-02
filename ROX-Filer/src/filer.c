@@ -52,14 +52,12 @@
 #include "type.h"
 #include "options.h"
 #include "minibuffer.h"
-#include "icon.h"
 #include "toolbar.h"
 #include "bind.h"
 #include "appinfo.h"
 #include "mount.h"
 #include "xml.h"
 #include "view_iface.h"
-#include "view_collection.h"
 #include "view_details.h"
 #include "action.h"
 #include "bookmarks.h"
@@ -191,7 +189,7 @@ void filer_init(void)
 
 	option_add_int(&o_unique_filer_windows, "filer_unique_windows", 0);
 	option_add_int(&o_short_flag_names, "filer_short_flag_names", FALSE);
-	option_add_int(&o_filer_view_type, "filer_view_type", VIEW_TYPE_COLLECTION);
+	option_add_int(&o_filer_view_type, "filer_view_type", VIEW_TYPE_DETAILS);
 
 	option_add_notify(filer_options_changed);
 
@@ -1687,9 +1685,6 @@ void filer_set_view_type(FilerWindow *filer_window, ViewType type)
 
 	switch (type)
 	{
-		case VIEW_TYPE_COLLECTION:
-			view = view_collection_new(filer_window);
-			break;
 		case VIEW_TYPE_DETAILS:
 			view = view_details_new(filer_window);
 			break;
@@ -2000,8 +1995,6 @@ void filer_check_mounted(const char *real_path)
 	parent = g_path_get_dirname(real_path);
 	refresh_dirs(parent);
 	g_free(parent);
-
-	icons_may_update(real_path);
 }
 
 /* Close all windows displaying 'path' or subdirectories of 'path' */

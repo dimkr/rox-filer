@@ -510,10 +510,7 @@ static void toolbar_details_clicked(GtkWidget *widget,
 	if (event->type == GDK_BUTTON_RELEASE &&
 		((GdkEventButton *)event)->button == 1)
 	{
-		if (filer_window->view_type == VIEW_TYPE_DETAILS)
-			filer_set_view_type(filer_window, VIEW_TYPE_COLLECTION);
-		else
-			filer_set_view_type(filer_window, VIEW_TYPE_DETAILS);
+		filer_set_view_type(filer_window, VIEW_TYPE_DETAILS);
 	}
 	else
 	{
@@ -521,33 +518,8 @@ static void toolbar_details_clicked(GtkWidget *widget,
 
 		if (((GdkEventButton *)event)->button == 2)
 			action = DETAILS_NONE;
-		else if (filer_window->view_type != VIEW_TYPE_COLLECTION)
-			action = filer_window->details_type;
 		else
-			switch (filer_window->details_type)
-			{
-				case DETAILS_NONE:
-					action = DETAILS_SIZE;
-					break;
-				case DETAILS_SIZE:
-					action = DETAILS_PERMISSIONS;
-					break;
-				case DETAILS_PERMISSIONS:
-					action = DETAILS_TYPE;
-					break;
-				case DETAILS_TYPE:
-					action = DETAILS_TIMES;
-					break;
-				case DETAILS_TIMES:
-					action = DETAILS_NONE;
-					break;
-				default:
-					action = DETAILS_NONE;
-					break;
-			}
-
-		if (filer_window->view_type != VIEW_TYPE_COLLECTION)
-			filer_set_view_type(filer_window, VIEW_TYPE_COLLECTION);
+			action = filer_window->details_type;
 
 		if (action != filer_window->details_type)
 			display_set_layout(filer_window,

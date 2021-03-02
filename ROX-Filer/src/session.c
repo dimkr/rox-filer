@@ -29,8 +29,6 @@
 #include "global.h"
 #include "filer.h"
 #include "main.h"
-#include "pinboard.h"
-#include "panel.h"
 #include "sc.h"
 #include "session.h"
 
@@ -42,13 +40,10 @@ gboolean session_auto_respawn = FALSE;	/* If we were started as 'rox -S' */
 static void save_state(SmClient *client)
 {
 	FilerWindow *filer_window;
-	Panel *panel;
-	Pinboard *pinboard = current_pinboard;
 	GList *list;
 	GPtrArray *restart_cmd = g_ptr_array_new();
 	SmPropValue *program;
-	gchar *types[] = { "-t", "-B", "-l", "-r" };
-	gint i, nvals;
+	gint nvals;
 
 	if (use_0launch)
 	{
@@ -73,24 +68,7 @@ static void save_state(SmClient *client)
 		g_ptr_array_add(restart_cmd, filer_window->sym_path);
 	}
 
-	if (session_auto_respawn)
-	{
-		for(i = 0; i < PANEL_NUMBER_OF_SIDES; i++)
-		{
-			panel = current_panel[i];
-			if(!panel)
-				continue;
-			g_ptr_array_add(restart_cmd, types[panel->side]);
-			g_ptr_array_add(restart_cmd, panel->name);
-		}
-
-		if (pinboard)
-		{
-			g_ptr_array_add(restart_cmd, "-p");
-			g_ptr_array_add(restart_cmd, (gchar *) pinboard_get_name());
-		}
-	}
-	else
+	if (!session_auto_respawn)
 	{
 		g_ptr_array_add(restart_cmd, "-S");
 	}

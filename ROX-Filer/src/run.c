@@ -38,7 +38,6 @@
 #include "dir.h"
 #include "diritem.h"
 #include "action.h"
-#include "icon.h"
 #include "choices.h"
 
 /* Static prototypes */
@@ -457,9 +456,6 @@ void examine(const guchar *path)
 		/* If this is itself a directory then rescan its contents... */
 		if (S_ISDIR(info.st_mode))
 			refresh_dirs(path);
-
-		/* If it's on the pinboard or a panel, update the icon... */
-		icons_may_update(path);
 	}
 }
 

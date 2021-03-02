@@ -53,7 +53,6 @@
 #include "mount.h"
 #include "minibuffer.h"
 #include "i18n.h"
-#include "pinboard.h"
 #include "dir.h"
 #include "diritem.h"
 #include "appmenu.h"
@@ -62,7 +61,6 @@
 #include "view_iface.h"
 #include "display.h"
 #include "bookmarks.h"
-#include "panel.h"
 #include "bulk_rename.h"
 #include "xtypes.h"
 #include "log.h"
@@ -138,17 +136,10 @@ static GList *set_keys_button(Option *option, xmlNode *node, guchar *label);
 
 /* Note that for most of these callbacks none of the arguments are used. */
 
-static void view_type_collection(void);
-static void view_type_details(void);
-
 /* (action used in these three - DetailsType) */
 static void change_size_bigger(void);
 static void change_size_smaller(void);
 static void change_size_auto(void);
-static void set_with_details_size(void);
-static void set_with_details_permissions(void);
-static void set_with_details_type(void);
-static void set_with_details_times(void);
 
 static void set_sort_name(void);
 static void set_sort_type(void);
@@ -236,13 +227,6 @@ static GtkWidget	*filer_xattrs;	/* Extended attributes item */
 
 static GtkActionEntry filer_menu_def[] = {
 {"Display",							NULL,					N_("Display"),						NULL, NULL, NULL},
-{"Icons View",						NULL,					N_("Icons View"),					NULL, NULL, view_type_collection},
-{"Icons, With...",					NULL,					N_("Icons, With..."),				NULL, NULL, NULL},
-{"Sizes",							NULL,					N_("Sizes"),						NULL, NULL, set_with_details_size},
-{"Permissions",						NULL,					N_("Permissions"),					NULL, NULL, set_with_details_permissions},
-{"Types",							NULL,					N_("Types"),						NULL, NULL, set_with_details_type},
-{"Times",							NULL,					N_("Times"),						NULL, NULL, set_with_details_times},
-{"List View",						NULL	,					N_("List View"),					NULL, NULL, view_type_details},
 {"Bigger Icons",					GTK_STOCK_ZOOM_IN,		N_("Bigger Icons"),					"equal", NULL, change_size_bigger},
 {"Smaller Icons",					GTK_STOCK_ZOOM_OUT,		N_("Smaller Icons"),				"minus", NULL, change_size_smaller},
 {"Automatic",						NULL,					N_("Automatic"),					NULL, NULL, change_size_auto},
@@ -316,15 +300,6 @@ static const char filer_menu_ui[] = \
 	"<ui>" \
 		"<popup name='filer'>" \
 			"<menu action='Display'>" \
-				"<menuitem action='Icons View'/>" \
-				"<menu action='Icons, With...'>" \
-				    "<menuitem action='Sizes'/>" \
-				    "<menuitem action='Permissions'/>" \
-				    "<menuitem action='Types'/>" \
-				    "<menuitem action='Times'/>" \
-				"</menu>" \
-				"<menuitem action='List View'/>" \
-				"<separator/>" \
 				"<menuitem action='Bigger Icons'/>" \
 				"<menuitem action='Smaller Icons'/>" \
 				"<separator/>" \
@@ -1069,27 +1044,6 @@ void menu_show_shift_action(GtkWidget *menu_item, DirItem *item, gboolean next)
 
 /* Actions */
 
-static void view_type(ViewType view_type)
-{
-	g_return_if_fail(window_with_focus != NULL);
-
-	if (view_type == VIEW_TYPE_COLLECTION)
-		display_set_layout(window_with_focus,
-				window_with_focus->display_style_wanted,
-				DETAILS_NONE, FALSE);
-
-	filer_set_view_type(window_with_focus, view_type);
-}
-
-static void view_type_collection(void)
-{
-	return view_type(VIEW_TYPE_COLLECTION);
-}
-
-static void view_type_details(void)
-{
-	return view_type(VIEW_TYPE_DETAILS);
-}
 
 static void change_size_bigger(void)
 {
@@ -1119,38 +1073,6 @@ static void change_size_auto(void)
 	else
 		display_set_layout(window_with_focus, AUTO_SIZE_ICONS,
 				   window_with_focus->details_type, FALSE);
-}
-
-static void set_with(DetailsType details)
-{
-	DisplayStyle size;
-
-	g_return_if_fail(window_with_focus != NULL);
-
-	size = window_with_focus->display_style_wanted;
-
-	filer_set_view_type(window_with_focus, VIEW_TYPE_COLLECTION);
-	display_set_layout(window_with_focus, size, details, FALSE);
-}
-
-static void set_with_details_size(void)
-{
-	return set_with(DETAILS_SIZE);
-}
-
-static void set_with_details_permissions(void)
-{
-	return set_with(DETAILS_PERMISSIONS);
-}
-
-static void set_with_details_type(void)
-{
-	return set_with(DETAILS_TYPE);
-}
-
-static void set_with_details_times(void)
-{
-	return set_with(DETAILS_TYPE);
 }
 
 static void set_sort(SortType sort_type)
