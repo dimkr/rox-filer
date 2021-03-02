@@ -147,7 +147,7 @@ static void cell_text_render (GtkCellRenderer      *cell,
                               GdkRectangle         *cell_area,
                               GdkRectangle         *expose_area,
                               GtkCellRendererState flags);
-static GtkType cell_text_get_type(void);
+static GType cell_text_get_type(void);
 static void get_size (GtkCellRenderer *cell,
                       GtkWidget       *widget,
                       GdkRectangle    *cell_area,
@@ -190,9 +190,9 @@ GtkCellRenderer *cell_text_new(void)
  ****************************************************************/
 
 
-static GtkType cell_text_get_type(void)
+static GType cell_text_get_type(void)
 {
-	static GtkType cell_text_type = 0;
+	static GType cell_text_type = 0;
 
 	if (!cell_text_type)
 	{

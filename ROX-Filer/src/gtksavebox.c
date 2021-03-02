@@ -240,8 +240,6 @@ gtk_savebox_init (GtkSavebox *savebox)
   GtkDialog *dialog = (GtkDialog *) savebox;
   GtkTargetEntry targets[] = { {"XdndDirectSave0", 0, GTK_TARGET_XDS} };
 
-  gtk_dialog_set_has_separator (dialog, FALSE);
-
   savebox->targets = gtk_target_list_new (targets,
 					  sizeof (targets) / sizeof (*targets));
   savebox->icon = NULL;
@@ -277,8 +275,8 @@ gtk_savebox_init (GtkSavebox *savebox)
   button = button_new_mixed (GTK_STOCK_DELETE, "_Discard");
   gtk_box_pack_start (GTK_BOX (savebox->discard_area), button, FALSE, TRUE, 2);
   g_signal_connect (button, "clicked", G_CALLBACK (discard_clicked), savebox);
-  GTK_WIDGET_UNSET_FLAGS (button, GTK_CAN_FOCUS);
-  GTK_WIDGET_SET_FLAGS (button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_focus(button, FALSE);
+  gtk_widget_set_can_default(button, TRUE);
 
   gtk_box_pack_end (GTK_BOX (dialog->vbox), savebox->discard_area,
 		      FALSE, TRUE, 0);
@@ -308,7 +306,7 @@ gtk_savebox_new (const gchar *action)
   gtk_dialog_add_button (dialog, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
 
   button = button_new_mixed (GTK_STOCK_SAVE, action);
-  GTK_WIDGET_SET_FLAGS (button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_default(button, TRUE);
   gtk_widget_show (button);
   gtk_dialog_add_action_widget (dialog, button, GTK_RESPONSE_OK);
 
@@ -316,7 +314,7 @@ gtk_savebox_new (const gchar *action)
 
   list = gtk_container_get_children (GTK_CONTAINER (dialog->action_area));
   for (next = list; next; next = next->next)
-    GTK_WIDGET_UNSET_FLAGS (GTK_WIDGET(next->data), GTK_CAN_FOCUS);
+    gtk_widget_set_can_focus(GTK_WIDGET(next->data), FALSE);
   g_list_free(list);
 
   return GTK_WIDGET(dialog);
@@ -665,7 +663,7 @@ gtk_savebox_get_property (GObject     *object,
   switch (prop_id)
     {
     case PROP_HAS_DISCARD:
-      g_value_set_boolean (value, GTK_WIDGET_VISIBLE(savebox->discard_area));
+      g_value_set_boolean (value, gtk_widget_get_visible(savebox->discard_area));
       break;
 
     default:

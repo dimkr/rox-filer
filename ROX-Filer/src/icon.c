@@ -880,7 +880,6 @@ static void show_rename_box(Icon *icon)
 	}
 
 	icon->dialog = gtk_dialog_new();
-	gtk_dialog_set_has_separator(GTK_DIALOG(icon->dialog), FALSE);
 	g_signal_connect(icon->dialog, "destroy",
 			G_CALLBACK(gtk_widget_destroyed), &icon->dialog);
 
@@ -955,9 +954,8 @@ static void show_rename_box(Icon *icon)
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(lock_state), icon->locked);
 	gtk_box_pack_start(vbox, lock_state, TRUE, TRUE, 0);
 	g_object_set_data(G_OBJECT(dialog), "new_lock_state", lock_state);
-	gtk_tooltips_set_tip(tooltips, lock_state,
-			_("Locking an item prevents it from being accidentally removed"),
-			NULL);
+	gtk_widget_set_tooltip_text(lock_state,
+			_("Locking an item prevents it from being accidentally removed"));
 
 	g_object_set_data(G_OBJECT(dialog), "callback_icon", icon);
 

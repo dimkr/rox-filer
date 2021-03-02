@@ -83,7 +83,7 @@ struct _PanelIcon {
 	int		style;
 };
 
-#define PANEL_ICON(obj) GTK_CHECK_CAST((obj), panel_icon_get_type(), PanelIcon)
+#define PANEL_ICON(obj) G_TYPE_CHECK_INSTANCE_CAST((obj), panel_icon_get_type(), PanelIcon)
 #define IS_PANEL_ICON(obj) \
 	G_TYPE_CHECK_INSTANCE_TYPE((obj), panel_icon_get_type())
 
@@ -811,18 +811,18 @@ static void panel_icon_set_tip(PanelIcon *pi)
 				node->xmlChildrenNode, 1);
 		if (str)
 		{
-			gtk_tooltips_set_tip(tooltips, pi->widget, str, NULL);
+			gtk_widget_set_tooltip_text(pi->widget, str);
 			g_free(str);
 		}
 	}
 	else if ((!panel_want_show_text(pi)) && !pi->socket)
 	{
 		if (icon->item->leafname && icon->item->leafname[0])
-			gtk_tooltips_set_tip(tooltips, pi->widget,
-					icon->item->leafname, NULL);
+			gtk_widget_set_tooltip_text(pi->widget,
+					icon->item->leafname);
 	}
 	else
-		gtk_tooltips_set_tip(tooltips, pi->widget, NULL, NULL);
+		gtk_widget_set_tooltip_text(pi->widget, NULL);
 
 	if (ai)
 		g_object_unref(ai);
@@ -1939,14 +1939,14 @@ static void applet_died(GtkWidget *socket)
 		gtk_widget_destroy(socket);
 	}
 
-	gtk_widget_unref(socket);
+	g_object_unref(socket);
 }
 
 static void socket_destroyed(GtkWidget *socket, GtkWidget *widget)
 {
 	g_object_set_data(G_OBJECT(socket), "lost_plug", "yes");
 
-	gtk_widget_unref(socket);
+	g_object_unref(socket);
 
 	gtk_widget_destroy(widget);	/* Remove from panel */
 
@@ -2038,10 +2038,10 @@ static void run_applet(PanelIcon *pi)
 	}
 	else
 	{
-		gtk_widget_ref(pi->socket);
+		g_object_ref(pi->socket);
 		on_child_death(pid, (CallbackFn) applet_died, pi->socket);
 
-		gtk_widget_ref(pi->socket);
+		g_object_ref(pi->socket);
 		g_signal_connect(pi->socket, "destroy",
 				G_CALLBACK(socket_destroyed), pi->widget);
 	}
@@ -2157,7 +2157,7 @@ static void panel_style_changed(void)
 			panel_new(NULL, i);
 		}
 
-		g_idle_add((GtkFunction) recreate_panels, names);
+		g_idle_add((GSourceFunc) recreate_panels, names);
 	}
 }
 

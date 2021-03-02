@@ -124,11 +124,11 @@ static void details_set_sort_func(GtkTreeSortable          *sortable,
 			          gint                    sort_column_id,
 			          GtkTreeIterCompareFunc  func,
 			          gpointer                data,
-			          GtkDestroyNotify        destroy);
+			          GDestroyNotify          destroy);
 static void details_set_default_sort_func(GtkTreeSortable        *sortable,
 				          GtkTreeIterCompareFunc  func,
 				          gpointer                data,
-				          GtkDestroyNotify        destroy);
+				          GDestroyNotify          destroy);
 static gboolean details_has_default_sort_func(GtkTreeSortable *sortable);
 static void view_details_sortable_init(GtkTreeSortableIface *iface);
 static void set_selected(ViewDetails *view_details, int i, gboolean selected);
@@ -610,7 +610,7 @@ static void details_set_sort_func(GtkTreeSortable          *sortable,
 			          gint                    sort_column_id,
 			          GtkTreeIterCompareFunc  func,
 			          gpointer                data,
-			          GtkDestroyNotify        destroy)
+			          GDestroyNotify          destroy)
 {
 	g_assert_not_reached();
 }
@@ -618,7 +618,7 @@ static void details_set_sort_func(GtkTreeSortable          *sortable,
 static void details_set_default_sort_func(GtkTreeSortable        *sortable,
 				          GtkTreeIterCompareFunc  func,
 				          gpointer                data,
-				          GtkDestroyNotify        destroy)
+				          GDestroyNotify          destroy)
 {
 	g_assert_not_reached();
 }
@@ -831,15 +831,15 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 	ViewDetails *view_details = (ViewDetails *) widget;
 	gboolean    had_cursor;
 
-	had_cursor = (GTK_WIDGET_FLAGS(widget) & GTK_HAS_FOCUS) != 0;
+	had_cursor = gtk_widget_has_focus(widget);
 
 	if (view_details->filer_window->selection_state == GTK_STATE_SELECTED)
-		GTK_WIDGET_SET_FLAGS(widget, GTK_HAS_FOCUS);
-	else
-		GTK_WIDGET_UNSET_FLAGS(widget, GTK_HAS_FOCUS);
+		gtk_widget_grab_focus(widget);
+	else // TODO: is this equivalent to GTK_WIDGET_UNSET_FLAGS(widget, GTK_HAS_FOCUS)?
+		gtk_widget_grab_focus(gtk_widget_get_parent(widget));
 	GTK_WIDGET_CLASS(parent_class)->expose_event(widget, event);
 	if (had_cursor)
-		GTK_WIDGET_SET_FLAGS(widget, GTK_HAS_FOCUS);
+		gtk_widget_grab_focus(widget);
 
 	if (event->window != gtk_tree_view_get_bin_window(tree))
 		return FALSE;	/* Not the main area */
@@ -1020,7 +1020,7 @@ static void view_details_class_init(gpointer gclass, gpointer data)
 static gboolean block_focus(GtkWidget *button, GtkDirectionType dir,
 			    ViewDetails *view_details)
 {
-	GTK_WIDGET_UNSET_FLAGS(button, GTK_CAN_FOCUS);
+	gtk_widget_set_can_focus(button, FALSE);
 	return FALSE;
 }
 
