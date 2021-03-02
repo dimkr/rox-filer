@@ -250,28 +250,35 @@ static gboolean if_deleted(gpointer item, gpointer removed)
 void filer_window_set_size(FilerWindow *filer_window, int w, int h)
 {
 	GtkWidget *window;
+	GtkAllocation allocation;
 
 	g_return_if_fail(filer_window != NULL);
 
+	gtk_widget_get_allocation(filer_window->scrollbar, &allocation);
+
 	if (filer_window->scrollbar)
-		w += filer_window->scrollbar->allocation.width;
+		w += allocation.width;
+
+	gtk_widget_get_allocation(filer_window->toolbar, &allocation);
 
 	if (o_toolbar.int_value != TOOLBAR_NONE)
-		h += filer_window->toolbar->allocation.height;
+		h += allocation.height;
 	if (filer_window->message)
-		h += filer_window->message->allocation.height;
+		h += allocation.height;
 
 	window = filer_window->window;
 
 	if (gtk_widget_get_visible(window))
 	{
 		gint x, y, m;
-		GtkRequisition	*req = &window->requisition;
-		GdkWindow *gdk_window = window->window;
+		GtkRequisition	req;
+		GdkWindow *gdk_window = gtk_widget_get_window(window);
 		GdkEvent *event;
 
-		w = MAX(req->width, w);
-		h = MAX(req->height, h);
+		gtk_widget_get_requisition(window, &req);
+
+		w = MAX(req.width, w);
+		h = MAX(req.height, h);
 		gdk_window_get_pointer(NULL, &x, &y, NULL);
 		m = gdk_screen_get_monitor_at_point(gdk_screen_get_default(), x, y);
 		gdk_window_get_position(gdk_window, &x, &y);
@@ -652,7 +659,7 @@ static void may_offer_unmount(FilerWindow *filer_window, char *mount)
 	unmount_mem_btn = gtk_check_button_new_with_label(
 			_("Perform the same action in future for this mount point"));
 	gtk_widget_show(unmount_mem_btn);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), unmount_mem_btn,
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))), unmount_mem_btn,
 			FALSE, FALSE, 0);
 	g_object_set_data(G_OBJECT(dialog), "unmount_mem_btn",
 			unmount_mem_btn);
@@ -1211,7 +1218,7 @@ gint filer_key_press_event(GtkWidget	*widget,
 {
 	ViewIface *view = filer_window->view;
 	ViewIter cursor;
-	GtkWidget *focus = GTK_WINDOW(widget)->focus_widget;
+	GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(widget));
 	guint key = event->keyval;
 	char group[2] = "1";
 

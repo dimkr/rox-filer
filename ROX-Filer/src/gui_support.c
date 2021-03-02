@@ -620,70 +620,13 @@ void window_put_just_above(GdkWindow *higher, GdkWindow *lower)
 		gdk_window_lower(higher);	/* To bottom of stack */
 }
 
-/* Copied from Gtk */
-static GtkFixedChild* fixed_get_child(GtkFixed *fixed, GtkWidget *widget)
-{
-	GList *children;
-
-	children = fixed->children;
-	while (children)
-	{
-		GtkFixedChild *child;
-
-		child = children->data;
-		children = children->next;
-
-		if (child->widget == widget)
-			return child;
-	}
-
-	return NULL;
-}
-
-/* Like gtk_fixed_move(), except not insanely slow */
-void fixed_move_fast(GtkFixed *fixed, GtkWidget *widget, int x, int y)
-{
-	GtkFixedChild *child;
-
-	child = fixed_get_child(fixed, widget);
-
-	g_assert(child);
-
-	gtk_widget_freeze_child_notify(widget);
-
-	child->x = x;
-	gtk_widget_child_notify(widget, "x");
-
-	child->y = y;
-	gtk_widget_child_notify(widget, "y");
-
-	gtk_widget_thaw_child_notify(widget);
-
-	if (gtk_widget_get_visible(widget) && gtk_widget_get_visible(fixed))
-	{
-		int border_width = GTK_CONTAINER(fixed)->border_width;
-		GtkAllocation child_allocation;
-		GtkRequisition child_requisition;
-
-		gtk_widget_get_child_requisition(child->widget,
-					&child_requisition);
-		child_allocation.x = child->x + border_width;
-		child_allocation.y = child->y + border_width;
-
-		child_allocation.x += GTK_WIDGET(fixed)->allocation.x;
-		child_allocation.y += GTK_WIDGET(fixed)->allocation.y;
-
-		child_allocation.width = child_requisition.width;
-		child_allocation.height = child_requisition.height;
-		gtk_widget_size_allocate(child->widget, &child_allocation);
-	}
-}
-
 /* Draw the black border */
 static gint tooltip_draw(GtkWidget *w)
 {
-	gdk_draw_rectangle(w->window, w->style->fg_gc[w->state], FALSE, 0, 0,
-			w->allocation.width - 1, w->allocation.height - 1);
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(w, &allocation);
+	gdk_draw_rectangle(gtk_widget_get_window(w), gtk_widget_get_style(w)->fg_gc[gtk_widget_get_state(w)], FALSE, 0, 0,
+			allocation.width - 1, allocation.height - 1);
 
 	return FALSE;
 }
@@ -705,6 +648,7 @@ void tooltip_show(guchar *text)
 	int	x, y, py;
 	int	w, h;
 	int m;
+	GtkAllocation allocation;
 
 	if (tip_timeout)
 	{
@@ -735,8 +679,9 @@ void tooltip_show(guchar *text)
 	gtk_widget_show(label);
 	gtk_widget_realize(tip_widget);
 
-	w = tip_widget->allocation.width;
-	h = tip_widget->allocation.height;
+	gtk_widget_get_allocation(tip_widget, &allocation);
+	w = allocation.width;
+	h = allocation.height;
 	gdk_window_get_pointer(NULL, &x, &py, NULL);
 
 	m = gdk_screen_get_monitor_at_point(gdk_screen_get_default(), x, py);
@@ -867,7 +812,7 @@ void radios_add(Radios *radios, const gchar *tip, gint value,
 	}
 
 	radio = gtk_radio_button_new_with_label(group, s);
-	gtk_label_set_line_wrap(GTK_LABEL(GTK_BIN(radio)->child), TRUE);
+	gtk_label_set_line_wrap(GTK_LABEL(gtk_bin_get_child(GTK_BIN(radio))), TRUE);
 	gtk_widget_show(radio);
 	if (tip)
 		gtk_widget_set_tooltip_text(radio, tip);

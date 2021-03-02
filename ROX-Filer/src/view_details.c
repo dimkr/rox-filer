@@ -760,7 +760,7 @@ static void select_lasso(ViewDetails *view_details, GdkFunction fn)
 
 	range[0] = view_details->lasso_start_index;
 	range[1] = get_lasso_index(view_details,
-			      view_details->drag_box_y[1] - adj->value);
+			      view_details->drag_box_y[1] - gtk_adjustment_get_value(adj));
 	range[2] = fn;
 
 	if (range[0] == range[1])
@@ -816,7 +816,7 @@ static gint view_details_motion_notify(GtkWidget *widget, GdkEventMotion *event)
 	{
 		GtkAdjustment	*adj;
 		adj = gtk_tree_view_get_vadjustment(tree);
-		set_lasso(view_details, event->x, event->y + adj->value);
+		set_lasso(view_details, event->x, event->y + gtk_adjustment_get_value(adj));
 		return TRUE;
 	}
 
@@ -830,6 +830,7 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 	GdkRectangle focus_rectangle;
 	ViewDetails *view_details = (ViewDetails *) widget;
 	gboolean    had_cursor;
+	GtkAllocation allocation;
 
 	had_cursor = gtk_widget_has_focus(widget);
 
@@ -875,13 +876,15 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 				view_details->drag_box_x[0]);
 		height = abs(view_details->drag_box_y[1] -
 				view_details->drag_box_y[0]);
-		y -= adj->value;
+		y -= gtk_adjustment_get_value(adj);
 
 		if (width && height)
 			gdk_draw_rectangle(event->window,
-				widget->style->fg_gc[GTK_STATE_NORMAL],
+				gtk_widget_get_style(widget)->fg_gc[GTK_STATE_NORMAL],
 				FALSE, x, y, width - 1, height - 1);
 	}
+
+	gtk_widget_get_allocation(widget, &allocation);
 
 	if (view_details->wink_item != -1 && view_details->wink_step & 1)
 	{
@@ -897,9 +900,9 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 		if (wink_area.height)
 		{
 			/* (visible) */
-			wink_area.width = widget->allocation.width;
+			wink_area.width = allocation.width;
 			gdk_draw_rectangle(event->window,
-				widget->style->fg_gc[GTK_STATE_NORMAL],
+				gtk_widget_get_style(widget)->fg_gc[GTK_STATE_NORMAL],
 					FALSE,
 					wink_area.x + 1,
 					wink_area.y + 1,
@@ -917,9 +920,9 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 	if (!focus_rectangle.height)
 		return FALSE;	/* Off screen */
 
-	focus_rectangle.width = widget->allocation.width;
+	focus_rectangle.width = allocation.width;
 
-	gtk_paint_focus(widget->style,
+	gtk_paint_focus(gtk_widget_get_style(widget),
 			event->window,
 			GTK_STATE_NORMAL,
 			NULL,
@@ -1074,7 +1077,7 @@ static void set_column_mono_font(GtkWidget *widget, GObject *object)
 					    "weight", COL_WEIGHT, 	\
 					    NULL);			\
 	gtk_tree_view_append_column(treeview, column);			\
-	g_signal_connect(column->button, "grab-focus",			\
+	g_signal_connect(gtk_tree_view_column_get_button(column), "grab-focus",			\
 			G_CALLBACK(block_focus), view_details);
 
 static void view_details_init(GTypeInstance *object, gpointer gclass)
@@ -1744,9 +1747,11 @@ static void redraw_wink_area(ViewDetails *view_details)
 	if (wink_area.height)
 	{
 		GdkWindow *window;
+		GtkAllocation allocation;
 		window = gtk_tree_view_get_bin_window(tree);
 
-		wink_area.width = GTK_WIDGET(tree)->allocation.width;
+		gtk_widget_get_allocation(GTK_WIDGET(tree), &allocation);
+		wink_area.width = allocation.width;
 		gdk_window_invalidate_rect(window, &wink_area, FALSE);
 	}
 }
@@ -1875,7 +1880,7 @@ static void set_lasso(ViewDetails *view_details, int x, int y)
 
 		adj = gtk_tree_view_get_vadjustment((GtkTreeView *)
 							view_details);
-		area.y -= adj->value;
+		area.y -= gtk_adjustment_get_value(adj);
 		gdk_window_invalidate_rect(window, &area, FALSE);
 	}
 }
@@ -1894,7 +1899,7 @@ static void view_details_start_lasso_box(ViewIface *view, GdkEventButton *event)
 
 	view_details->drag_box_x[0] = view_details->drag_box_x[1] = event->x;
 	view_details->drag_box_y[0] = view_details->drag_box_y[1] = event->y +
-								adj->value;
+								gtk_adjustment_get_value(adj);
 	view_details->lasso_box = TRUE;
 }
 
@@ -2093,7 +2098,7 @@ static gboolean view_details_auto_scroll_callback(ViewIface *view)
 	gdk_drawable_get_size(window, &w, NULL);
 
 	adj = gtk_range_get_adjustment(scrollbar);
-	h = adj->page_size;
+	h = gtk_adjustment_get_page_size(adj);
 
 	if ((x < 0 || x > w || y < 0 || y > h) && !view_details->lasso_box)
 		return FALSE;		/* Out of window - stop */
@@ -2105,13 +2110,13 @@ static gboolean view_details_auto_scroll_callback(ViewIface *view)
 
 	if (diff)
 	{
-		int	old = adj->value;
+		int	old = gtk_adjustment_get_value(adj);
 		int	value = old + diff;
 
-		value = CLAMP(value, 0, adj->upper - adj->page_size);
+		value = CLAMP(value, 0, gtk_adjustment_get_upper(adj) - gtk_adjustment_get_page_size(adj));
 		gtk_adjustment_set_value(adj, value);
 
-		if (adj->value != old)
+		if (gtk_adjustment_get_value(adj) != old)
 			dnd_spring_abort();
 	}
 
