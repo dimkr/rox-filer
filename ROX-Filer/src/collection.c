@@ -170,7 +170,7 @@ static void draw_focus_at(Collection *collection, GdkRectangle *area)
 		state = GTK_STATE_INSENSITIVE;
 
 	gtk_paint_focus(widget->style,
-			widget->window,
+			gtk_widget_get_window(widget),
 			state,
 			NULL,
 			widget,
@@ -388,7 +388,7 @@ static void collection_realize(GtkWidget *widget)
 
 	g_return_if_fail(widget != NULL);
 	g_return_if_fail(IS_COLLECTION(widget));
-	g_return_if_fail(widget->parent != NULL);
+	g_return_if_fail(gtk_widget_get_parent(widget) != NULL);
 
 	gtk_widget_set_realized(widget, TRUE);
 	collection = COLLECTION(widget);
@@ -409,20 +409,20 @@ static void collection_realize(GtkWidget *widget)
 
 	attributes_mask = GDK_WA_X | GDK_WA_Y |
 				GDK_WA_VISUAL | GDK_WA_COLORMAP;
-	widget->window = gdk_window_new(gtk_widget_get_parent_window(widget),
+	gtk_widget_get_window(widget) = gdk_window_new(gtk_widget_get_parent_window(widget),
 			&attributes, attributes_mask);
 
-	widget->style = gtk_style_attach(widget->style, widget->window);
+	widget->style = gtk_style_attach(widget->style, gtk_widget_get_window(widget));
 
-	gdk_window_set_user_data(widget->window, widget);
-	gdk_window_set_background(widget->window,
+	gdk_window_set_user_data(gtk_widget_get_window(widget), widget);
+	gdk_window_set_background(gtk_widget_get_window(widget),
 			&widget->style->base[GTK_STATE_NORMAL]);
 
 	bg = &widget->style->base[GTK_STATE_NORMAL];
 	fg = &widget->style->text[GTK_STATE_NORMAL];
 	xor_values.function = GDK_XOR;
 	xor_values.foreground.pixel = fg->pixel ^ bg->pixel;
-	collection->xor_gc = gdk_gc_new_with_values(widget->window,
+	collection->xor_gc = gdk_gc_new_with_values(gtk_widget_get_window(widget),
 					&xor_values,
 					GDK_GC_FOREGROUND
 					| GDK_GC_FUNCTION);
@@ -489,7 +489,7 @@ static void collection_size_allocate(GtkWidget *widget,
 
 	if (gtk_widget_get_realized(widget))
 	{
-		gdk_window_move_resize(widget->window,
+		gdk_window_move_resize(gtk_widget_get_window(widget),
 				allocation->x, allocation->y,
 				allocation->width, allocation->height);
 
@@ -548,7 +548,7 @@ static gint collection_expose(GtkWidget *widget, GdkEventExpose *event)
 	 * Clear the background only if we have a background pixmap.
 	 */
 	if (widget->style->bg_pixmap[GTK_STATE_NORMAL])
-		gtk_paint_flat_box(widget->style, widget->window, GTK_STATE_NORMAL,
+		gtk_paint_flat_box(widget->style, gtk_widget_get_window(widget), GTK_STATE_NORMAL,
 				   GTK_SHADOW_NONE, &event->area,
 				   widget, "collection", 0, 0, -1, -1);
 
@@ -604,7 +604,7 @@ static void default_draw_item(
 		GdkRectangle *area,
 		gpointer user_data)
 {
-	gdk_draw_arc(widget->window,
+	gdk_draw_arc(gtk_widget_get_window(widget),
 			item->selected ? widget->style->white_gc
 				       : widget->style->black_gc,
 			TRUE,
@@ -948,8 +948,8 @@ static gint collection_motion_notify(GtkWidget *widget,
 	if (!collection->lasso_box)
 		return FALSE;
 
-	if (event->window != widget->window)
-		gdk_window_get_pointer(widget->window, &x, &y, NULL);
+	if (event->window != gtk_widget_get_window(widget))
+		gdk_window_get_pointer(gtk_widget_get_window(widget), &x, &y, NULL);
 	else
 	{
 		x = event->x;
@@ -989,7 +989,7 @@ static void draw_lasso_box(Collection *collection)
 	 * As a quick hack, don't draw boxes that small for now...
 	 */
 	if (width || height)
-		gdk_draw_rectangle(widget->window, collection->xor_gc, FALSE,
+		gdk_draw_rectangle(gtk_widget_get_window(widget), collection->xor_gc, FALSE,
 			x, y, width, height);
 }
 
@@ -1354,7 +1354,7 @@ void collection_draw_item(Collection *collection, gint item, gboolean blank)
 
 	collection_get_item_area(collection, row, col, &area);
 
-	gdk_window_invalidate_rect(widget->window, &area, FALSE);
+	gdk_window_invalidate_rect(gtk_widget_get_window(widget), &area, FALSE);
 }
 
 void collection_set_item_size(Collection *collection, int width, int height)
@@ -1378,7 +1378,7 @@ void collection_set_item_size(Collection *collection, int width, int height)
 	{
 		gint		window_width;
 
-		gdk_drawable_get_size(widget->window, &window_width, NULL);
+		gdk_drawable_get_size(gtk_widget_get_window(widget), &window_width, NULL);
 		collection->columns = MAX(window_width / collection->item_width,
 					  1);
 		if (collection->cursor_item != -1)

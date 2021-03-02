@@ -422,7 +422,7 @@ static void complete(FilerWindow *filer_window)
 		 */
 		tmp_pos = leaf - text; /* index of start of leaf */
 		gtk_editable_delete_text(GTK_EDITABLE(entry),
-					 tmp_pos, entry->text_length);
+					 tmp_pos, gtk_entry_get_text_length(entry));
 		gtk_editable_insert_text(GTK_EDITABLE(entry),
 					 item->leafname, shortest_stem,
 					 &tmp_pos);

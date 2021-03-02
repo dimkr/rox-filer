@@ -181,7 +181,7 @@ gboolean remote_init(xmlDocPtr rpc, gboolean new_copy)
 		g_signal_connect(ipc_window, "property-notify-event",
 				G_CALLBACK(soap_done), GINT_TO_POINTER(xsoap));
 
-		gdk_property_change(ipc_window->window, xsoap,
+		gdk_property_change(gtk_widget_get_window(ipc_window), xsoap,
 				gdk_x11_xatom_to_atom(XA_STRING), 8,
 				GDK_PROP_MODE_REPLACE, mem, size);
 		g_free(mem);
@@ -191,13 +191,13 @@ gboolean remote_init(xmlDocPtr rpc, gboolean new_copy)
 		return TRUE;
 	}
 
-	xwindow = GDK_WINDOW_XWINDOW(ipc_window->window);
+	xwindow = GDK_WINDOW_XWINDOW(gtk_widget_get_window(ipc_window));
 
 	/* Make the IPC window contain a property pointing to
 	 * itself - this can then be used to check that it really
 	 * is an IPC window.
 	 */
-	gdk_property_change(ipc_window->window, filer_atom,
+	gdk_property_change(gtk_widget_get_window(ipc_window), filer_atom,
 			gdk_x11_xatom_to_atom(XA_WINDOW), 32,
 			GDK_PROP_MODE_REPLACE,
 			(void *) &xwindow, 1);
@@ -222,7 +222,7 @@ gboolean remote_init(xmlDocPtr rpc, gboolean new_copy)
 	filer_atom_any = gdk_atom_intern(unique_id, FALSE);
 	g_free(unique_id);
 	/* On the IPC window... */
-	gdk_property_change(ipc_window->window, filer_atom_any,
+	gdk_property_change(gtk_widget_get_window(ipc_window), filer_atom_any,
 			gdk_x11_xatom_to_atom(XA_WINDOW), 32,
 			GDK_PROP_MODE_REPLACE,
 			(void *) &xwindow, 1);
@@ -1026,7 +1026,7 @@ static void soap_send(GtkWidget *from, GdkAtom prop, GdkWindow *dest)
 {
 	GdkEventClient event;
 
-	event.data.l[0] = GDK_WINDOW_XWINDOW(from->window);
+	event.data.l[0] = GDK_WINDOW_XWINDOW(gtk_widget_get_window(from));
 	event.data.l[1] = gdk_x11_atom_to_xatom(prop);
 	event.data_format = 32;
 	event.message_type = xsoap;

@@ -741,7 +741,7 @@ static GtkWidget *add_button(GtkWidget *bar, Tool *tool,
 	{
 		GtkWidget *hbox, *label;
 		GList	  *kids;
-		hbox = GTK_BIN(button)->child;
+		hbox = gtk_bin_get_child(GTK_BIN(button));
 		kids = gtk_container_get_children(GTK_CONTAINER(hbox));
 		label = g_list_nth_data(kids, 1);
 		g_list_free(kids);
@@ -792,13 +792,13 @@ static gboolean drag_motion(GtkWidget		*widget,
                             guint		time,
 			    FilerWindow		*filer_window)
 {
-	GdkDragAction	action = context->suggested_action;
+	GdkDragAction	action = gdk_drag_context_get_suggested_action(context);
 	DropDest	dest;
 	gpointer	type = (gpointer) drop_dest_dir;
 
 	dest = (DropDest) g_object_get_data(G_OBJECT(widget), "toolbar_dest");
 
-	if ((context->actions & GDK_ACTION_ASK) && o_dnd_left_menu.int_value &&
+	if ((gdk_drag_context_get_actions(context) & GDK_ACTION_ASK) && o_dnd_left_menu.int_value &&
 		dest != DROP_BOOKMARK)
 	{
 		guint state;

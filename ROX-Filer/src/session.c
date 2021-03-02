@@ -62,7 +62,7 @@ static void save_state(SmClient *client)
 	for (list = all_filer_windows; list; list = list->next)
 	{
 		filer_window = (FilerWindow *)list->data;
-		gdk_window_set_role(filer_window->window->window,
+		gdk_window_set_role(gtk_widget_get_window(filer_window->window),
 				    filer_window->sym_path);
 		g_ptr_array_add(restart_cmd, "-d");
 		g_ptr_array_add(restart_cmd, filer_window->sym_path);

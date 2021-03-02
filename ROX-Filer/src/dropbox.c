@@ -251,10 +251,10 @@ static void drop_box_drag_data_received(GtkWidget *drop_box,
 	guchar *path = NULL;
 	gboolean success = FALSE;
 
-	if (!selection_data->data)
+	if (!gtk_selection_data_get_data(selection_data))
 		goto err; 		/* Timeout? */
 
-	uris = uri_list_to_glist(selection_data->data);
+	uris = uri_list_to_glist(gtk_selection_data_get_data(selection_data));
 
 	if (g_list_length(uris) != 1)
 	{

@@ -413,16 +413,16 @@ gboolean ensure_filer_menu(void)
 	GET_MENU_ITEM(filer_menu, "filer");
 	GET_SMENU_ITEM(filer_file_menu, "filer", "File");
 	GET_SSMENU_ITEM(item, "filer", "File", "Set Type...");
-	filer_set_type = GTK_BIN(item)->child;
+	filer_set_type = gtk_bin_get_child(GTK_BIN(item));
 
 #if defined(HAVE_GETXATTR) || defined(HAVE_ATTROPEN)
 	GET_SSMENU_ITEM(item, "filer", "File", "Extended attributes...");
-	filer_xattrs = GTK_BIN(item)->child;
+	filer_xattrs = gtk_bin_get_child(GTK_BIN(item));
 #endif
 
 	GET_SMENU_ITEM(filer_new_menu, "filer", "New");
 	GET_SSMENU_ITEM(item, "filer", "Window", "Follow Symbolic Links");
-	filer_follow_sym = GTK_BIN(item)->child;
+	filer_follow_sym = gtk_bin_get_child(GTK_BIN(item));
 
 	/* File '' label... */
 	GET_SMENU_ITEM(filer_file_item, "filer", "File");
@@ -431,7 +431,7 @@ gboolean ensure_filer_menu(void)
 	GET_SSMENU_ITEM(file_shift_item, "filer", "File", "Shift Open");
 
 	GET_SSMENU_ITEM(item, "filer", "Window", "New Window");
-	filer_new_window = GTK_BIN(item)->child;
+	filer_new_window = gtk_bin_get_child(GTK_BIN(item));
 
 	g_signal_connect(filer_menu, "selection-done",
 			G_CALLBACK(menu_closed), NULL);
@@ -547,7 +547,8 @@ void position_menu(GtkMenu *menu, gint *x, gint *y,
 
 	while (item >= 0 && next)
 	{
-		int h = ((GtkWidget *) next->data)->requisition.height;
+		gtk_widget_get_requisition((GtkWidget *) next->data, &requisition);
+		int h = requisition.height;
 
 		if (item > 0)
 			y_shift += h;
@@ -825,7 +826,7 @@ static void clipboardcb(
 		GtkSelectionData *data,
 		gpointer p)
 {
-	if (data->length > 0)
+	if (gtk_selection_data_get_length(data) > 0)
 		menu_set_items_shaded(filer_menu, FALSE, 5, 1);
 	else if (GPOINTER_TO_INT(p))
 		gtk_clipboard_request_contents(
@@ -1282,7 +1283,7 @@ static void savebox_show(const gchar *action, const gchar *path,
 			"If off, the path from the root directory is stored - "
 			"use this if the symlink may move but the target will "
 			"stay put."));
-		gtk_box_pack_start(GTK_BOX(GTK_DIALOG(savebox)->vbox),
+		gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(savebox))),
 				check_relative, FALSE, TRUE, 0);
 		gtk_widget_show(check_relative);
 	}
@@ -2371,7 +2372,7 @@ void menu_set_items_shaded(GtkWidget *menu, gboolean shaded, int from, int n)
 	item = g_list_nth(items, from);
 	while (item && n--)
 	{
-		gtk_widget_set_sensitive(GTK_BIN(item->data)->child, !shaded);
+		gtk_widget_set_sensitive(gtk_bin_get_child(GTK_BIN(item->data)), !shaded);
 		item = item->next;
 	}
 	g_list_free(items);
@@ -2475,7 +2476,7 @@ static void paste_from_clipboard(void)
 	char **uri_list = gtk_selection_data_get_uris(selection);
 	if (!uri_list)
 	{
-		char *tmp = g_strndup(selection->data, selection->length);
+		char *tmp = g_strndup(gtk_selection_data_get_data(selection), gtk_selection_data_get_length(selection));
 		uri_list = g_strsplit_set(tmp, "\r\n", -1);
 		g_free(tmp);
 	}

@@ -84,7 +84,7 @@ void bulk_rename(const char *dir, GList *items)
 
 	hbox = gtk_hbox_new(FALSE, 4);
 	gtk_container_set_border_width(GTK_CONTAINER(hbox), 4);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(box)->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(box))),
 				hbox, FALSE, TRUE, 0);
 
 	gtk_box_pack_start(GTK_BOX(hbox),
@@ -155,7 +155,7 @@ void bulk_rename(const char *dir, GList *items)
 						GTK_SHADOW_IN);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin),
 				GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(box)->vbox), swin, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(box))), swin, TRUE, TRUE, 0);
 	gtk_container_add(GTK_CONTAINER(swin), tree);
 
 	while (items) {

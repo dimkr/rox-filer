@@ -515,7 +515,7 @@ static void open_coloursel(GtkWidget *button, Option *option)
 	g_signal_connect(csel->ok_button, "clicked",
 			G_CALLBACK(get_new_colour), option);
 
-	patch = GTK_BIN(button)->child;
+	patch = gtk_bin_get_child(button);
 
 	gtk_color_selection_set_current_color(
 			GTK_COLOR_SELECTION(csel->colorsel),
@@ -552,12 +552,12 @@ static void toggle_active_font(GtkToggleButton *toggle, Option *option)
 
 	if (gtk_toggle_button_get_active(toggle))
 	{
-		gtk_widget_set_sensitive(option->widget->parent, TRUE);
+		gtk_widget_set_sensitive(option->gtk_widget_get_parent(widget), TRUE);
 		gtk_label_set_text(GTK_LABEL(option->widget), "Sans 12");
 	}
 	else
 	{
-		gtk_widget_set_sensitive(option->widget->parent, FALSE);
+		gtk_widget_set_sensitive(option->gtk_widget_get_parent(widget), FALSE);
 		gtk_label_set_text(GTK_LABEL(option->widget),
 				   _("(use default)"));
 	}
@@ -1275,7 +1275,7 @@ static void update_font(Option *option)
 	if (active)
 	{
 		gtk_toggle_button_set_active(active, have_font);
-		gtk_widget_set_sensitive(option->widget->parent, have_font);
+		gtk_widget_set_sensitive(option->gtk_widget_get_parent(widget), have_font);
 	}
 
 	gtk_label_set_text(GTK_LABEL(option->widget),
@@ -1746,7 +1746,7 @@ static GList *build_font(Option *option, xmlNode *node, guchar *label)
 
 	option->update_widget = update_font;
 	option->read_widget = read_font;
-	option->widget = GTK_BIN(button)->child;
+	option->widget = gtk_bin_get_child(button);
 	may_add_tip(button, node);
 
 	g_object_set_data(G_OBJECT(option->widget), "rox_override", active);
@@ -1761,7 +1761,7 @@ static void button_patch_set_colour(GtkWidget *button, GdkColor *colour)
 	GtkStyle   	*style;
 	GtkWidget	*patch;
 
-	patch = GTK_BIN(button)->child;
+	patch = gtk_bin_get_child(button);
 
 	style = gtk_style_copy(GTK_WIDGET(patch)->style);
 	style->bg[GTK_STATE_NORMAL].red = colour->red;

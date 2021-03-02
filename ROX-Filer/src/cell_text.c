@@ -299,13 +299,17 @@ static void cell_text_get_property(GObject    *object,
 	GtkCellRendererText *celltext = GTK_CELL_RENDERER_TEXT(object);
 	CellText *mycelltext = (CellText *) object;
 	CellTextPrivate *priv;
+	GValue propval = G_VALUE_INIT;
 
 	priv = CELL_TEXT_GET_PRIVATE((CellText *) object);
 
 	switch (param_id)
 	{
 		case PROP_TEXT:
-			g_value_set_string (value, celltext->text);
+			g_value_init (&propval, G_TYPE_STRING);
+			g_object_get_property (G_OBJECT (celltext), "text", &propval);
+			g_value_set_string (value, g_value_get_string (&propval));
+			g_value_unset (&propval);
 			break;
 
 		case PROP_ATTRIBUTES:

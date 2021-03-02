@@ -308,9 +308,9 @@ void filer_window_set_size(FilerWindow *filer_window, int w, int h)
 			int x, y;
 			int nx, ny;
 
-			GdkWindow *win = filer_window->window->window;
+			GdkWindow *win = gtk_widget_get_window(filer_window->window);
 
-			gdk_window_get_pointer(filer_window->window->window,
+			gdk_window_get_pointer(gtk_widget_get_window(filer_window->window),
 						&x, &y, NULL);
 
 			nx = CLAMP(x, 4, w - 4);
@@ -421,9 +421,9 @@ static void update_display(Directory *dir,
 
 			filer_window->win_icon = fi;
 
-			if (filer_window->window->window)
+			if (gtk_widget_get_window(filer_window->window))
 				gdk_window_set_cursor(
-						filer_window->window->window,
+						gtk_widget_get_window(filer_window->window),
 						NULL);
 			set_scanning_display(filer_window, FALSE);
 			toolbar_update_info(filer_window);
@@ -477,7 +477,7 @@ static void update_display(Directory *dir,
 
 static void attach(FilerWindow *filer_window)
 {
-	gdk_window_set_cursor(filer_window->window->window, busy_cursor);
+	gdk_window_set_cursor(gtk_widget_get_window(filer_window->window), busy_cursor);
 	view_clear(filer_window->view);
 	filer_window->scanning = TRUE;
 	dir_attach(filer_window->directory, (DirCallback) update_display,
@@ -1399,8 +1399,8 @@ void filer_change_to(FilerWindow *filer_window,
 			view_cursor_visible(filer_window->view);
 
 	filer_set_title(filer_window);
-	if (filer_window->window->window)
-		gdk_window_set_role(filer_window->window->window,
+	if (gtk_widget_get_window(filer_window->window))
+		gdk_window_set_role(gtk_widget_get_window(filer_window->window),
 				    filer_window->sym_path);
 	view_cursor_to_iter(filer_window->view, NULL);
 
@@ -1827,7 +1827,7 @@ static void filer_add_widgets(FilerWindow *filer_window, const gchar *wm_class)
 	gtk_widget_show(filer_window->scrollbar);
 	gtk_widget_realize(filer_window->window);
 
-	gdk_window_set_role(filer_window->window->window,
+	gdk_window_set_role(gtk_widget_get_window(filer_window->window),
 			    filer_window->sym_path);
 
 	filer_window_set_size(filer_window, 4, 4);
@@ -2205,7 +2205,7 @@ void filer_target_mode(FilerWindow *filer_window,
 
 	if (fn != old_fn)
 		gdk_window_set_cursor(
-				GTK_WIDGET(filer_window->view)->window,
+				gtk_widget_get_window(GTK_WIDGET(filer_window->view)),
 				fn ? crosshair : NULL);
 
 	filer_window->target_cb = fn;
@@ -2840,13 +2840,13 @@ static gboolean drag_motion(GtkWidget		*widget,
 	DirItem		*item;
 	ViewIface	*view = filer_window->view;
 	ViewIter	iter;
-	GdkDragAction	action = context->suggested_action;
+	GdkDragAction	action = gdk_drag_context_get_suggested_action(context);
 	const guchar	*new_path = NULL;
 	const char	*type = NULL;
 	gboolean	retval = FALSE;
 	gboolean	same_window;
 
-	if ((context->actions & GDK_ACTION_ASK) && o_dnd_left_menu.int_value)
+	if ((gdk_drag_context_get_actions(context) & GDK_ACTION_ASK) && o_dnd_left_menu.int_value)
 	{
 		guint state;
 		gdk_window_get_pointer(NULL, NULL, NULL, &state);
@@ -2870,7 +2870,7 @@ static gboolean drag_motion(GtkWidget		*widget,
 
 	if (o_dnd_drag_to_icons.int_value)
 	{
-		view_get_iter_at_point(view, &iter, widget->window, x, y);
+		view_get_iter_at_point(view, &iter, gtk_widget_get_window(widget), x, y);
 		item = iter.peek(&iter);
 	}
 	else
@@ -3600,7 +3600,7 @@ void filer_save_settings(FilerWindow *fwin)
 	gtk_window_set_title(GTK_WINDOW(set_win->window),
 			     _("Select display properties to save"));
 
-	vbox=GTK_DIALOG(set_win->window)->vbox;
+	vbox=gtk_dialog_get_content_area(GTK_DIALOG(set_win->window));
 
 	lbl=gtk_label_new(_("<b>Save display settings for directory</b>"));
 	gtk_label_set_use_markup(GTK_LABEL(lbl), TRUE);

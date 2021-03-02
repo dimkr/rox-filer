@@ -181,7 +181,7 @@ void dnd_init(void)
 /* Set the XdndDirectSave0 property on the source window for this context */
 static void set_xds_prop(GdkDragContext *context, const char *text)
 {
-	gdk_property_change(context->source_window,
+	gdk_property_change(gdk_drag_context_get_source_window(context),
 			XdndDirectSave0,
 			xa_text_plain, 8,
 			GDK_PROP_MODE_REPLACE,
@@ -194,7 +194,7 @@ static char *get_xds_prop(GdkDragContext *context)
 	guchar	*prop_text;
 	gint	length;
 
-	if (gdk_property_get(context->source_window,
+	if (gdk_property_get(gdk_drag_context_get_source_window(context),
 			XdndDirectSave0,
 			xa_text_plain,
 			0, MAXURILEN,
@@ -630,7 +630,7 @@ static void got_moz_uri(GtkWidget 		*widget,
 {
 	gchar *utf8, *uri_list, *eol;
 
-	utf8 = g_utf16_to_utf8((gunichar2 *) selection_data->data,
+	utf8 = g_utf16_to_utf8((gunichar2 *) gtk_selection_data_get_data(selection_data),
 			(glong) selection_data->length,
 			NULL, NULL, NULL);
 
@@ -664,7 +664,7 @@ static void drag_data_received(GtkWidget      	*widget,
 			       guint32          time,
 			       gpointer		user_data)
 {
-	if (!selection_data->data)
+	if (!gtk_selection_data_get_data(selection_data))
 	{
 		/* Timeout? */
 		gtk_drag_finish(context, FALSE, FALSE, time);	/* Failure */
@@ -681,7 +681,7 @@ static void drag_data_received(GtkWidget      	*widget,
 			got_data_raw(widget, context, selection_data, time);
 			break;
 		case TARGET_URI_LIST:
-			got_uri_list(widget, context, selection_data->data,
+			got_uri_list(widget, context, gtk_selection_data_get_data(selection_data),
 					time);
 			break;
 		case TARGET_MOZ_URL:
@@ -701,7 +701,7 @@ static void got_data_xds_reply(GtkWidget 		*widget,
 				guint32             	time)
 {
 	gboolean	mark_unsafe = TRUE;
-	char		response = *selection_data->data;
+	char		response = *gtk_selection_data_get_data(selection_data);
 	const char	*error = NULL;
 	char		*dest_path;
 
@@ -762,7 +762,7 @@ static void got_data_raw(GtkWidget 		*widget,
 	const char	*error = NULL;
 	const char	*dest_path;
 
-	g_return_if_fail(selection_data->data != NULL);
+	g_return_if_fail(gtk_selection_data_get_data(selection_data) != NULL);
 
 	dest_path = g_dataset_get_data(context, "drop_dest_path");
 
@@ -778,7 +778,7 @@ static void got_data_raw(GtkWidget 		*widget,
 	{
 		/* The data needs to be sent to an application */
 		run_with_data(dest_path,
-				selection_data->data, selection_data->length);
+				gtk_selection_data_get_data(selection_data), selection_data->length);
 		gtk_drag_finish(context, TRUE, FALSE, time);    /* Success! */
 		return;
 	}
@@ -797,7 +797,7 @@ static void got_data_raw(GtkWidget 		*widget,
 	else
 	{
 		if (write(fd,
-			selection_data->data,
+			gtk_selection_data_get_data(selection_data),
 			selection_data->length) == -1)
 				error = g_strerror(errno);
 
@@ -1354,7 +1354,7 @@ void dnd_motion_grab_pointer(void)
 {
 	g_return_if_fail(motion_widget != NULL);
 
-	gdk_pointer_grab(motion_widget->window, FALSE,
+	gdk_pointer_grab(motion_gtk_widget_get_window(widget), FALSE,
 			GDK_POINTER_MOTION_MASK |
 			GDK_BUTTON_RELEASE_MASK,
 			FALSE, NULL, GDK_CURRENT_TIME);

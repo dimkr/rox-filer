@@ -143,7 +143,7 @@ void infobox_new(const gchar *pathname)
 
 	owindow = G_OBJECT(window);
 	details = make_vbox(path, owindow);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
 				    details, TRUE, TRUE, 0);
 
 	g_object_set_data(owindow, "details", details);
@@ -180,7 +180,7 @@ static void refresh_info(GObject *window)
 	g_return_if_fail(details != NULL);
 	g_return_if_fail(path != NULL);
 
-	vbox = details->parent;
+	vbox = gtk_widget_get_parent(details);
 	gtk_widget_destroy(details);
 
 	details = make_vbox(path, window);

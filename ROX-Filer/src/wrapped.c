@@ -164,22 +164,24 @@ static gint wrapped_label_expose(GtkWidget *widget, GdkEventExpose *event)
 {
 	WrappedLabel *wl = (WrappedLabel *) widget;
 	int x;
+	GtkAllocation allocation;
 
 	g_return_val_if_fail(event != NULL, TRUE);
 	g_return_val_if_fail(wl->layout != NULL, TRUE);
 
-	x = widget->allocation.x -
-		((wl->text_width - widget->allocation.width) >> 1);
+	gtk_widget_get_allocation(widget, &allocation);
+	x = allocation.x -
+		((wl->text_width - allocation.width) >> 1);
 
-	gtk_paint_layout(widget->style,
-			 widget->window,
-			 GTK_WIDGET_STATE(widget),
+	gtk_paint_layout(gtk_widget_get_style(widget),
+			 gtk_widget_get_window(widget),
+			 gtk_widget_get_state(widget),
 			 FALSE,
 			 NULL,		/* DON'T clip! */
 			 widget,
 			 "label",
 			 x - wl->x_off,
-			 widget->allocation.y - wl->y_off,
+			 allocation.y - wl->y_off,
 			 wl->layout);
 
 	return FALSE;
