@@ -50,7 +50,6 @@
 #include "display.h"
 #include "xml.h"
 #include "dropbox.h"
-#include "icon.h"
 
 #define SET_MEDIA 2
 #define SET_TYPE 1
@@ -173,7 +172,6 @@ static gboolean create_diricon(const guchar *filepath, const guchar *iconpath)
 		return FALSE;
 
 	dir_check_this(filepath);
-	icons_may_update(filepath);
 
 	return TRUE;
 }
@@ -249,10 +247,7 @@ static void clear_icon(DropBox *drop_box, GObject *dialog)
 				delayed_error(_("Can't delete '%s':\n%s"),
 						path, g_strerror(errno));
 			else
-			{
 				dir_check_this(pathname);
-				icons_may_update(pathname);
-			}
 		}
 		g_free(tmp);
 	}
@@ -274,7 +269,6 @@ void icon_set_handler_dialog(DirItem *item, const guchar *path)
 	g_return_if_fail(item != NULL && path != NULL);
 
 	dialog = GTK_DIALOG(gtk_dialog_new());
-	gtk_dialog_set_has_separator(dialog, FALSE);
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_MOUSE);
 	g_object_set_data_full(G_OBJECT(dialog), "pathname",
 				 strdup(path), g_free);
@@ -330,8 +324,8 @@ void icon_set_handler_dialog(DirItem *item, const guchar *path)
 	g_object_set_data(G_OBJECT(dialog), "rox-dropbox", frame);
 
 	/* Make sure rox-dropbox is set before packing (calls changed) */
-	radios_pack(radios, GTK_BOX(dialog->vbox));
-	gtk_box_pack_start(GTK_BOX(dialog->vbox), frame, TRUE, TRUE, 4);
+	radios_pack(radios, GTK_BOX(gtk_dialog_get_content_area(dialog)));
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)), frame, TRUE, TRUE, 4);
 
 	g_signal_connect(frame, "path_dropped",
 			G_CALLBACK(drag_icon_dropped), dialog);

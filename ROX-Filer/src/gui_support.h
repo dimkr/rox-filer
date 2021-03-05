@@ -52,10 +52,6 @@ void info_message(const char *message, ...);
 void set_cardinal_property(GdkWindow *window, GdkAtom prop, gulong value);
 gboolean get_cardinal_property(GdkWindow *window, GdkAtom prop, gulong length,
                                gulong *data, gint *actual_length);
-int get_current_desktop(void);
-int get_number_of_desktops(void);
-void get_work_area(int *x, int *y, int *width, int *height); 
-void make_panel_window(GtkWidget *widget);
 void delayed_error(const char *error, ...);
 gboolean load_file(const char *pathname, char **data_out, long *length_out);
 GtkWidget *new_help_button(HelpFunc show_help, gpointer data);
@@ -70,9 +66,8 @@ GtkWidget *button_new_mixed(const char *stock, const char *message);
 GtkWidget *button_new_image_text(GtkWidget *image, const char *message);
 void entry_set_error(GtkWidget *entry, gboolean error);
 void window_put_just_above(GdkWindow *higher, GdkWindow *lower);
-void fixed_move_fast(GtkFixed *fixed, GtkWidget *widget, int x, int y);
 void tooltip_show(guchar *text);
-void tooltip_prime(GtkFunction callback, GObject *object);
+void tooltip_prime(GSourceFunc callback, GObject *object);
 void widget_modify_font(GtkWidget *widget, PangoFontDescription *font_desc);
 gboolean confirm(const gchar *message, const gchar *stock, const gchar *action);
 
@@ -83,9 +78,6 @@ void radios_pack(Radios *radios, GtkBox *box);
 void radios_set_value(Radios *radios, gint value);
 gint radios_get_value(Radios *radios);
 GList *uri_list_to_glist(const char *uri_list);
-GtkWidget *simple_image_new(GdkPixbuf *pixbuf);
-void render_pixbuf(GdkPixbuf *pixbuf, GdkDrawable *target, GdkGC *gc,
-		   int x, int y, int width, int height);
 /* gdk_window_set_keep_below() only exists in GTK >= 2.4 and is broken until
  * 2.4.6 */
 void keep_below(GdkWindow *window, gboolean setting);

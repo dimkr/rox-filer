@@ -53,10 +53,6 @@ gint		monitor_width, monitor_height;
 MonitorAdjacent *monitor_adjacent;
 
 static GdkAtom xa_cardinal;
-GdkAtom xa__NET_WORKAREA = GDK_NONE;
-GdkAtom xa__NET_WM_DESKTOP = GDK_NONE;
-GdkAtom xa__NET_CURRENT_DESKTOP = GDK_NONE;
-GdkAtom xa__NET_NUMBER_OF_DESKTOPS = GDK_NONE;
 
 static GtkWidget *current_dialog = NULL;
 
@@ -67,7 +63,6 @@ static gint tip_timeout = 0;	/* When primed */
 /* Static prototypes */
 static void run_error_info_dialog(GtkMessageType type, const char *message,
 				  va_list args);
-static GType simple_image_get_type(void);
 static void gui_get_monitor_adjacent(int monitor, MonitorAdjacent *adj);
 
 void gui_store_screen_geometry(GdkScreen *screen)
@@ -117,14 +112,6 @@ void gui_store_screen_geometry(GdkScreen *screen)
 void gui_support_init()
 {
 	gpointer klass;
-
-	xa_cardinal = gdk_atom_intern("CARDINAL", FALSE);
-        xa__NET_WORKAREA = gdk_atom_intern("_NET_WORKAREA", FALSE);
-        xa__NET_WM_DESKTOP = gdk_atom_intern("_NET_WM_DESKTOP", FALSE);
-        xa__NET_CURRENT_DESKTOP = gdk_atom_intern("_NET_CURRENT_DESKTOP",
-                                                  FALSE);
-        xa__NET_NUMBER_OF_DESKTOPS = gdk_atom_intern("_NET_NUMBER_OF_DESKTOPS",
-                                                     FALSE);
 
 	gui_store_screen_geometry(gdk_screen_get_default());
 
@@ -180,7 +167,7 @@ int get_choice(const char *title,
 		else
 			button = gtk_button_new_from_stock(stock);
 
-		GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+		gtk_widget_set_can_default(button, TRUE);
 		gtk_widget_show(button);
 
 		gtk_dialog_add_action_widget(GTK_DIALOG(current_dialog),
@@ -273,153 +260,6 @@ gboolean get_cardinal_property(GdkWindow *window, GdkAtom prop, gulong length,
         return ok;
 }
 
-int get_current_desktop(void)
-{
-        gint act_len;
-        gulong current;
-        Window root=GDK_ROOT_WINDOW();
-        GdkWindow *gdk_root=gdk_window_foreign_new(root);
-        int desk=0;
-
-        if(get_cardinal_property(gdk_root, xa__NET_CURRENT_DESKTOP, 1,
-                                 &current, &act_len) && act_len==1)
-                desk=(int) current;
-
-        return desk;
-}
-
-int get_number_of_desktops(void)
-{
-        gint act_len;
-        gulong num;
-        Window root=GDK_ROOT_WINDOW();
-        GdkWindow *gdk_root=gdk_window_foreign_new(root);
-        int desks=1;
-
-        if(get_cardinal_property(gdk_root, xa__NET_NUMBER_OF_DESKTOPS, 1,
-                                 &num, &act_len) && act_len==1)
-                desks=(int) num;
-
-        return desks;
-}
-
-/* Get the working area for the desktop, excluding things like the Gnome
- * panels. */
-void get_work_area(int *x, int *y, int *width, int *height)
-{
-        gint act_len;
-        gulong *work_area;
-        Window root=GDK_ROOT_WINDOW();
-        GdkWindow *gdk_root=gdk_window_foreign_new(root);
-        int x0, y0, w0, h0;
-        int idesk, ndesk, nval;
-
-        idesk=get_current_desktop();
-        ndesk=get_number_of_desktops();
-        nval=4*ndesk;
-        work_area=g_new(gulong, nval);
-
-        if(get_cardinal_property(gdk_root, xa__NET_WORKAREA, nval,
-                                         work_area, &act_len) &&
-           act_len==nval)
-        {
-                x0 = work_area[idesk*4+0];
-                y0 = work_area[idesk*4+1];
-                w0 = work_area[idesk*4+2];
-                h0 = work_area[idesk*4+3];
-        }
-        else
-        {
-                x0 = y0 = 0;
-                w0 = screen_width;
-                h0 = screen_height;
-        }
-
-        g_free(work_area);
-
-        if(x)
-                *x = x0;
-        if(y)
-                *y = y0;
-        if(width)
-                *width = w0;
-        if(height)
-                *height = h0;
-}
-
-/* NB: Also used for pinned icons.
- * TODO: Set the level here too.
- */
-void make_panel_window(GtkWidget *widget)
-{
-	static gboolean need_init = TRUE;
-	static GdkAtom xa_state, xa_atom, xa_hints, xa_win_hints;
-	GdkWindow *window = widget->window;
-	long wm_hints_values[] = {1, False, 0, 0, 0, 0, 0, 0};
-	GdkAtom	wm_protocols[2];
-
-	g_return_if_fail(window != NULL);
-
-	if (o_override_redirect.int_value)
-	{
-		gdk_window_set_override_redirect(window, TRUE);
-		return;
-	}
-
-	if (need_init)
-	{
-		xa_win_hints = gdk_atom_intern("_WIN_HINTS", FALSE);
-		xa_state = gdk_atom_intern("_WIN_STATE", FALSE);
-		xa_atom = gdk_atom_intern("ATOM", FALSE);
-		xa_hints = gdk_atom_intern("WM_HINTS", FALSE);
-
-		need_init = FALSE;
-	}
-
-	gdk_window_set_decorations(window, 0);
-	gdk_window_set_functions(window, 0);
-	gtk_window_set_resizable(GTK_WINDOW(widget), FALSE);
-
-	/* Don't hide panel/pinboard windows initially (WIN_STATE_HIDDEN).
-	 * Needed for IceWM - Christopher Arndt <chris.arndt@web.de>
-	 */
-	set_cardinal_property(window, xa_state,
-			WIN_STATE_STICKY |
-			WIN_STATE_FIXED_POSITION | WIN_STATE_ARRANGE_IGNORE);
-
-	set_cardinal_property(window, xa_win_hints,
-			WIN_HINTS_SKIP_FOCUS | WIN_HINTS_SKIP_WINLIST |
-			WIN_HINTS_SKIP_TASKBAR);
-
-	/* Appear on all workspaces */
-	set_cardinal_property(window, xa__NET_WM_DESKTOP, 0xffffffff);
-
-	gdk_property_change(window, xa_hints, xa_hints, 32,
-			GDK_PROP_MODE_REPLACE, (guchar *) wm_hints_values,
-			sizeof(wm_hints_values) / sizeof(long));
-
-	wm_protocols[0] = gdk_atom_intern("WM_DELETE_WINDOW", FALSE);
-	wm_protocols[1] = gdk_atom_intern("_NET_WM_PING", FALSE);
-	gdk_property_change(window,
-			gdk_atom_intern("WM_PROTOCOLS", FALSE), xa_atom, 32,
-			GDK_PROP_MODE_REPLACE, (guchar *) wm_protocols,
-			sizeof(wm_protocols) / sizeof(GdkAtom));
-
-	gdk_window_set_skip_taskbar_hint(window, TRUE);
-	gdk_window_set_skip_pager_hint(window, TRUE);
-
-	if (g_object_class_find_property(G_OBJECT_GET_CLASS(widget),
-					"accept_focus"))
-	{
-		GValue vfalse = { 0, };
-		g_value_init(&vfalse, G_TYPE_BOOLEAN);
-		g_value_set_boolean(&vfalse, FALSE);
-		g_object_set_property(G_OBJECT(widget),
-					"accept_focus", &vfalse);
-		g_value_unset(&vfalse);
-	}
-}
-
 static gboolean error_idle_cb(gpointer data)
 {
 	char	**error = (char **) data;
@@ -498,7 +338,7 @@ GtkWidget *new_help_button(HelpFunc show_help, gpointer data)
 	gtk_container_add(GTK_CONTAINER(b), icon);
 	g_signal_connect_swapped(b, "clicked", G_CALLBACK(show_help), data);
 
-	GTK_WIDGET_UNSET_FLAGS(b, GTK_CAN_FOCUS);
+	gtk_widget_set_can_focus(b, FALSE);
 
 	return b;
 }
@@ -678,7 +518,7 @@ void wink_widget(GtkWidget *widget)
 
 static gboolean idle_destroy_cb(GtkWidget *widget)
 {
-	gtk_widget_unref(widget);
+	g_object_unref(widget);
 	gtk_widget_destroy(widget);
 	return FALSE;
 }
@@ -686,7 +526,7 @@ static gboolean idle_destroy_cb(GtkWidget *widget)
 /* Destroy the widget in an idle callback */
 void destroy_on_idle(GtkWidget *widget)
 {
-	gtk_widget_ref(widget);
+	g_object_ref(widget);
 	g_idle_add((GSourceFunc) idle_destroy_cb, widget);
 }
 
@@ -780,70 +620,13 @@ void window_put_just_above(GdkWindow *higher, GdkWindow *lower)
 		gdk_window_lower(higher);	/* To bottom of stack */
 }
 
-/* Copied from Gtk */
-static GtkFixedChild* fixed_get_child(GtkFixed *fixed, GtkWidget *widget)
-{
-	GList *children;
-
-	children = fixed->children;
-	while (children)
-	{
-		GtkFixedChild *child;
-
-		child = children->data;
-		children = children->next;
-
-		if (child->widget == widget)
-			return child;
-	}
-
-	return NULL;
-}
-
-/* Like gtk_fixed_move(), except not insanely slow */
-void fixed_move_fast(GtkFixed *fixed, GtkWidget *widget, int x, int y)
-{
-	GtkFixedChild *child;
-
-	child = fixed_get_child(fixed, widget);
-
-	g_assert(child);
-
-	gtk_widget_freeze_child_notify(widget);
-
-	child->x = x;
-	gtk_widget_child_notify(widget, "x");
-
-	child->y = y;
-	gtk_widget_child_notify(widget, "y");
-
-	gtk_widget_thaw_child_notify(widget);
-
-	if (GTK_WIDGET_VISIBLE(widget) && GTK_WIDGET_VISIBLE(fixed))
-	{
-		int border_width = GTK_CONTAINER(fixed)->border_width;
-		GtkAllocation child_allocation;
-		GtkRequisition child_requisition;
-
-		gtk_widget_get_child_requisition(child->widget,
-					&child_requisition);
-		child_allocation.x = child->x + border_width;
-		child_allocation.y = child->y + border_width;
-
-		child_allocation.x += GTK_WIDGET(fixed)->allocation.x;
-		child_allocation.y += GTK_WIDGET(fixed)->allocation.y;
-
-		child_allocation.width = child_requisition.width;
-		child_allocation.height = child_requisition.height;
-		gtk_widget_size_allocate(child->widget, &child_allocation);
-	}
-}
-
 /* Draw the black border */
 static gint tooltip_draw(GtkWidget *w)
 {
-	gdk_draw_rectangle(w->window, w->style->fg_gc[w->state], FALSE, 0, 0,
-			w->allocation.width - 1, w->allocation.height - 1);
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(w, &allocation);
+	gdk_draw_rectangle(gtk_widget_get_window(w), gtk_widget_get_style(w)->fg_gc[gtk_widget_get_state(w)], FALSE, 0, 0,
+			allocation.width - 1, allocation.height - 1);
 
 	return FALSE;
 }
@@ -865,6 +648,7 @@ void tooltip_show(guchar *text)
 	int	x, y, py;
 	int	w, h;
 	int m;
+	GtkAllocation allocation;
 
 	if (tip_timeout)
 	{
@@ -895,8 +679,9 @@ void tooltip_show(guchar *text)
 	gtk_widget_show(label);
 	gtk_widget_realize(tip_widget);
 
-	w = tip_widget->allocation.width;
-	h = tip_widget->allocation.height;
+	gtk_widget_get_allocation(tip_widget, &allocation);
+	w = allocation.width;
+	h = allocation.height;
 	gdk_window_get_pointer(NULL, &x, &py, NULL);
 
 	m = gdk_screen_get_monitor_at_point(gdk_screen_get_default(), x, py);
@@ -924,7 +709,7 @@ void tooltip_show(guchar *text)
 /* Call callback(user_data) after a while, unless cancelled.
  * Object is refd now and unref when cancelled / after callback called.
  */
-void tooltip_prime(GtkFunction callback, GObject *object)
+void tooltip_prime(GSourceFunc callback, GObject *object)
 {
 	time_t  now;
 	int	delay;
@@ -937,7 +722,7 @@ void tooltip_prime(GtkFunction callback, GObject *object)
 	g_object_ref(object);
 	tip_timeout = g_timeout_add_full(G_PRIORITY_DEFAULT_IDLE,
 					 delay,
-					 (GSourceFunc) callback,
+					 callback,
 					 object,
 					 g_object_unref);
 }
@@ -1027,10 +812,10 @@ void radios_add(Radios *radios, const gchar *tip, gint value,
 	}
 
 	radio = gtk_radio_button_new_with_label(group, s);
-	gtk_label_set_line_wrap(GTK_LABEL(GTK_BIN(radio)->child), TRUE);
+	gtk_label_set_line_wrap(GTK_LABEL(gtk_bin_get_child(GTK_BIN(radio))), TRUE);
 	gtk_widget_show(radio);
 	if (tip)
-		gtk_tooltips_set_tip(tooltips, radio, tip, NULL);
+		gtk_widget_set_tooltip_text(radio, tip);
 	if (!group)
 		g_signal_connect(G_OBJECT(radio), "destroy",
 				G_CALLBACK(radios_free), radios);
@@ -1149,125 +934,6 @@ GList *uri_list_to_glist(const char *uri_list)
 	}
 
 	return list;
-}
-
-typedef struct _SimpleImageClass SimpleImageClass;
-typedef struct _SimpleImage SimpleImage;
-
-struct _SimpleImageClass {
-	GtkWidgetClass parent;
-};
-
-struct _SimpleImage {
-	GtkWidget widget;
-
-	GdkPixbuf *pixbuf;
-	int	  width, height;
-};
-
-#define SIMPLE_IMAGE(obj) (GTK_CHECK_CAST((obj), \
-				simple_image_get_type(), SimpleImage))
-
-static void simple_image_finialize(GObject *object)
-{
-	SimpleImage *image = SIMPLE_IMAGE(object);
-
-	g_object_unref(G_OBJECT(image->pixbuf));
-	image->pixbuf = NULL;
-}
-
-static void simple_image_size_request(GtkWidget      *widget,
-				      GtkRequisition *requisition)
-{
-	SimpleImage *image = (SimpleImage *) widget;
-
-	requisition->width = image->width;
-	requisition->height = image->height;
-}
-
-/* Render a pixbuf without messing up the clipping */
-void render_pixbuf(GdkPixbuf *pixbuf, GdkDrawable *target, GdkGC *gc,
-		   int x, int y, int width, int height)
-{
-	gdk_draw_pixbuf(target, gc, pixbuf, 0, 0, x, y, width, height,
-		        GDK_RGB_DITHER_NORMAL, 0, 0);
-
-}
-
-static gint simple_image_expose(GtkWidget *widget, GdkEventExpose *event)
-{
-	SimpleImage *image = (SimpleImage *) widget;
-	int x;
-
-	gdk_gc_set_clip_region(widget->style->black_gc, event->region);
-
-	x = widget->allocation.x +
-		(widget->allocation.width - image->width) / 2;
-
-	render_pixbuf(image->pixbuf, widget->window, widget->style->black_gc,
-			x, widget->allocation.y,
-			image->width, image->height);
-
-	gdk_gc_set_clip_region(widget->style->black_gc, NULL);
-	return FALSE;
-}
-
-static void simple_image_class_init(gpointer gclass, gpointer data)
-{
-	GObjectClass *object = (GObjectClass *) gclass;
-	GtkWidgetClass *widget = (GtkWidgetClass *) gclass;
-
-	object->finalize = simple_image_finialize;
-	widget->size_request = simple_image_size_request;
-	widget->expose_event = simple_image_expose;
-}
-
-static void simple_image_init(GTypeInstance *object, gpointer gclass)
-{
-	GTK_WIDGET_SET_FLAGS(object, GTK_NO_WINDOW);
-}
-
-static GType simple_image_get_type(void)
-{
-	static GType type = 0;
-
-	if (!type)
-	{
-		static const GTypeInfo info =
-		{
-			sizeof (SimpleImageClass),
-			NULL,			/* base_init */
-			NULL,			/* base_finalise */
-			simple_image_class_init,
-			NULL,			/* class_finalise */
-			NULL,			/* class_data */
-			sizeof(SimpleImage),
-			0,			/* n_preallocs */
-			simple_image_init,
-		};
-
-		type = g_type_register_static(gtk_widget_get_type(),
-						"SimpleImage", &info, 0);
-	}
-
-	return type;
-}
-
-GtkWidget *simple_image_new(GdkPixbuf *pixbuf)
-{
-	SimpleImage *image;
-
-	g_return_val_if_fail(pixbuf != NULL, NULL);
-
-	image = g_object_new(simple_image_get_type(), NULL);
-
-	image->pixbuf = pixbuf;
-	g_object_ref(G_OBJECT(pixbuf));
-
-	image->width = gdk_pixbuf_get_width(pixbuf);
-	image->height = gdk_pixbuf_get_height(pixbuf);
-
-	return GTK_WIDGET(image);
 }
 
 /* Whether a line l1 long starting from n1 overlaps a line l2 from n2 */

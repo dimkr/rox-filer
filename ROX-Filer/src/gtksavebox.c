@@ -240,8 +240,6 @@ gtk_savebox_init (GtkSavebox *savebox)
   GtkDialog *dialog = (GtkDialog *) savebox;
   GtkTargetEntry targets[] = { {"XdndDirectSave0", 0, GTK_TARGET_XDS} };
 
-  gtk_dialog_set_has_separator (dialog, FALSE);
-
   savebox->targets = gtk_target_list_new (targets,
 					  sizeof (targets) / sizeof (*targets));
   savebox->icon = NULL;
@@ -251,7 +249,7 @@ gtk_savebox_init (GtkSavebox *savebox)
   gtk_window_set_wmclass (GTK_WINDOW (savebox), "savebox", "Savebox");
 
   alignment = gtk_alignment_new (0.5, 0.5, 0, 0);
-  gtk_box_pack_start (GTK_BOX (dialog->vbox), alignment, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area(dialog)), alignment, TRUE, TRUE, 0);
 
   savebox->drag_box = gtk_event_box_new ();
   gtk_container_set_border_width (GTK_CONTAINER (savebox->drag_box), 4);
@@ -267,9 +265,9 @@ gtk_savebox_init (GtkSavebox *savebox)
   savebox->entry = gtk_entry_new ();
   g_signal_connect_swapped (savebox->entry, "activate",
 			     G_CALLBACK (do_save), savebox);
-  gtk_box_pack_start (GTK_BOX (dialog->vbox), savebox->entry, FALSE, TRUE, 4);
+  gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area(dialog)), savebox->entry, FALSE, TRUE, 4);
 
-  gtk_widget_show_all (dialog->vbox);
+  gtk_widget_show_all (gtk_dialog_get_content_area(dialog));
   gtk_widget_grab_focus (savebox->entry);
 
   savebox->discard_area = gtk_hbutton_box_new();
@@ -277,12 +275,12 @@ gtk_savebox_init (GtkSavebox *savebox)
   button = button_new_mixed (GTK_STOCK_DELETE, "_Discard");
   gtk_box_pack_start (GTK_BOX (savebox->discard_area), button, FALSE, TRUE, 2);
   g_signal_connect (button, "clicked", G_CALLBACK (discard_clicked), savebox);
-  GTK_WIDGET_UNSET_FLAGS (button, GTK_CAN_FOCUS);
-  GTK_WIDGET_SET_FLAGS (button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_focus(button, FALSE);
+  gtk_widget_set_can_default(button, TRUE);
 
-  gtk_box_pack_end (GTK_BOX (dialog->vbox), savebox->discard_area,
+  gtk_box_pack_end (GTK_BOX (gtk_dialog_get_content_area(dialog)), savebox->discard_area,
 		      FALSE, TRUE, 0);
-  gtk_box_reorder_child (GTK_BOX (dialog->vbox), savebox->discard_area, 0);
+  gtk_box_reorder_child (GTK_BOX (gtk_dialog_get_content_area(dialog)), savebox->discard_area, 0);
 
   savebox->dnd_action = GDK_ACTION_COPY;
 }
@@ -308,15 +306,15 @@ gtk_savebox_new (const gchar *action)
   gtk_dialog_add_button (dialog, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
 
   button = button_new_mixed (GTK_STOCK_SAVE, action);
-  GTK_WIDGET_SET_FLAGS (button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_default(button, TRUE);
   gtk_widget_show (button);
   gtk_dialog_add_action_widget (dialog, button, GTK_RESPONSE_OK);
 
   gtk_dialog_set_default_response (dialog, GTK_RESPONSE_OK);
 
-  list = gtk_container_get_children (GTK_CONTAINER (dialog->action_area));
+  list = gtk_container_get_children (GTK_CONTAINER (gtk_dialog_get_action_area(dialog)));
   for (next = list; next; next = next->next)
-    GTK_WIDGET_UNSET_FLAGS (GTK_WIDGET(next->data), GTK_CAN_FOCUS);
+    gtk_widget_set_can_focus(GTK_WIDGET(next->data), FALSE);
   g_list_free(list);
 
   return GTK_WIDGET(dialog);
@@ -490,7 +488,7 @@ read_xds_property (GdkDragContext *context, gboolean delete)
 
   g_return_val_if_fail (context != NULL, NULL);
 
-  if (gdk_property_get (context->source_window, XdndDirectSave, text_plain,
+  if (gdk_property_get (gdk_drag_context_get_source_window(context), XdndDirectSave, text_plain,
 		       0, XDS_MAXURILEN, delete,
 		       NULL, NULL, &length, &prop_text)
 	    && prop_text)
@@ -514,12 +512,12 @@ write_xds_property (GdkDragContext *context, const guchar *value)
 
   if (value)
     {
-      gdk_property_change (context->source_window, XdndDirectSave,
+      gdk_property_change (gdk_drag_context_get_source_window(context), XdndDirectSave,
 			   text_plain, 8, GDK_PROP_MODE_REPLACE,
 			   value, strlen (value));
     }
   else
-    gdk_property_delete (context->source_window, XdndDirectSave);
+    gdk_property_delete (gdk_drag_context_get_source_window(context), XdndDirectSave);
 }
 
 static void drag_end (GtkWidget *widget, GdkDragContext *context)
@@ -665,7 +663,7 @@ gtk_savebox_get_property (GObject     *object,
   switch (prop_id)
     {
     case PROP_HAS_DISCARD:
-      g_value_set_boolean (value, GTK_WIDGET_VISIBLE(savebox->discard_area));
+      g_value_set_boolean (value, gtk_widget_get_visible(savebox->discard_area));
       break;
 
     default:

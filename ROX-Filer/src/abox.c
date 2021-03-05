@@ -84,7 +84,6 @@ GtkWidget* abox_new(const gchar *title, gboolean quiet)
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(abox->quiet), quiet);
 
 	gtk_window_set_title(GTK_WINDOW(widget), title);
-	gtk_dialog_set_has_separator(GTK_DIALOG(widget), FALSE);
 
 	return widget;
 }
@@ -130,15 +129,15 @@ static void abox_init(GTypeInstance *object, gpointer gclass)
 	abox->next_timer = 0;
 	abox->question = FALSE;
 	gtk_misc_set_alignment(GTK_MISC(abox->dir_label), 0.5, 0.5);
-	gtk_box_pack_start(GTK_BOX(dialog->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)),
 				abox->dir_label, FALSE, TRUE, 0);
 
 	abox->log_hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(dialog->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)),
 				abox->log_hbox, TRUE, TRUE, 4);
 
 	frame = gtk_frame_new(NULL);
-	gtk_box_pack_start_defaults(GTK_BOX(abox->log_hbox), frame);
+	gtk_box_pack_start(GTK_BOX(abox->log_hbox), frame, TRUE, TRUE, 0);
 
 	text = gtk_text_view_new();
 	gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
@@ -171,7 +170,7 @@ static void abox_init(GTypeInstance *object, gpointer gclass)
 			NULL);
 
 	abox->cmp_area = gtk_table_new(2, 6, FALSE);
-	gtk_box_pack_start(GTK_BOX(dialog->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)),
 				abox->cmp_area, FALSE, FALSE, 2);
 	gtk_table_set_row_spacings(GTK_TABLE(abox->cmp_area), 2);
 	gtk_table_set_col_spacings(GTK_TABLE(abox->cmp_area), 2);
@@ -212,15 +211,15 @@ static void abox_init(GTypeInstance *object, gpointer gclass)
 	abox->progress=NULL;
 
 	abox->flag_box = gtk_hbox_new(FALSE, 16);
-	gtk_box_pack_end(GTK_BOX(dialog->vbox),
+	gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dialog)),
 				abox->flag_box, FALSE, TRUE, 2);
 
 	button = button_new_mixed(GTK_STOCK_GOTO_LAST, _("_Quiet"));
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_dialog_add_action_widget(dialog, button, RESPONSE_QUIET);
 	gtk_dialog_set_default_response(dialog, RESPONSE_QUIET);
 
-	gtk_widget_show_all(dialog->vbox);
+	gtk_widget_show_all(gtk_dialog_get_content_area(dialog));
 	gtk_widget_hide(abox->cmp_area);
 
 	abox->quiet = abox_add_flag(abox,
@@ -250,7 +249,7 @@ GtkWidget *abox_add_flag(ABox *abox, const gchar *label, const gchar *tip,
 	GtkWidget	*check;
 
 	check = gtk_check_button_new_with_label(label);
-	gtk_tooltips_set_tip(tooltips, check, tip, NULL);
+	gtk_widget_set_tooltip_text(check, tip);
 	g_object_set_data(G_OBJECT(check), "abox-response",
 			  GINT_TO_POINTER(response));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), default_value);
@@ -338,7 +337,7 @@ static void abox_finalise(GObject *object)
 		g_source_remove(abox->next_timer);
 	}
 
-	parent_class = gtk_type_class(GTK_TYPE_DIALOG);
+	parent_class = g_type_class_peek(GTK_TYPE_DIALOG);
 
 	if (G_OBJECT_CLASS(parent_class)->finalize)
 		(*G_OBJECT_CLASS(parent_class)->finalize)(object);
@@ -440,7 +439,7 @@ void abox_add_results(ABox *abox)
 
 	frame = gtk_frame_new(NULL);
 	gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(abox)->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(abox))),
 				frame, TRUE, TRUE, 4);
 
 	gtk_container_add(GTK_CONTAINER(frame), scroller);
@@ -463,7 +462,7 @@ void abox_add_results(ABox *abox)
 	gtk_container_add(GTK_CONTAINER(scroller), abox->results);
 
 	gtk_widget_set_size_request(abox->results, 100, 100);
-	gtk_box_set_child_packing(GTK_BOX(GTK_DIALOG(abox)->vbox),
+	gtk_box_set_child_packing(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(abox))),
 			  abox->log_hbox, FALSE, TRUE, 4, GTK_PACK_START);
 
 	g_signal_connect(abox->results, "row-activated",
@@ -508,6 +507,7 @@ void abox_add_combo(ABox *abox, const gchar *tlabel, GList *presets,
 		    const gchar *text, GtkWidget *help_button)
 {
 	GtkWidget *hbox, *label, *combo;
+	const GList *preset;
 
 	g_return_if_fail(abox != NULL);
 	g_return_if_fail(IS_ABOX(abox));
@@ -520,16 +520,16 @@ void abox_add_combo(ABox *abox, const gchar *tlabel, GList *presets,
 		gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 4);
 	}
 
-	combo = gtk_combo_new();
-	gtk_combo_disable_activate(GTK_COMBO(combo));
-	gtk_combo_set_use_arrows_always(GTK_COMBO(combo), TRUE);
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), presets);
-	abox->entry = GTK_COMBO(combo)->entry;
+	combo = gtk_combo_box_text_new_with_entry ();
+	for (preset = presets; preset; preset = preset->next) {
+		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo), preset->data);
+	}
+	abox->entry = gtk_bin_get_child(GTK_BIN(combo));
 	gtk_entry_set_activates_default(GTK_ENTRY(abox->entry), TRUE);
 	gtk_entry_set_text(GTK_ENTRY(abox->entry), text);
 	gtk_box_pack_start(GTK_BOX(hbox), combo, TRUE, TRUE, 4);
 
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(abox)->vbox), hbox,
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(abox))), hbox,
 				FALSE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), help_button, FALSE, TRUE, 4);
 
@@ -553,7 +553,7 @@ void abox_add_entry(ABox *abox, const gchar *text, GtkWidget *help_button)
 	gtk_widget_set_name(abox->entry, "fixed-style");
 	gtk_entry_set_text(GTK_ENTRY(abox->entry), text);
 	gtk_box_pack_start(GTK_BOX(hbox), abox->entry, TRUE, TRUE, 4);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(abox)->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(abox))),
 				hbox, FALSE, TRUE, 4);
 	gtk_box_pack_start(GTK_BOX(hbox), help_button,
 				FALSE, TRUE, 4);
@@ -675,7 +675,7 @@ void    abox_set_percentage(ABox *abox, int per)
 		GtkDialog *dialog = GTK_DIALOG(abox);
 
 		abox->progress=gtk_progress_bar_new ();
-		gtk_box_pack_start(GTK_BOX(dialog->vbox),
+		gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)),
 				abox->progress, FALSE, FALSE, 2);
 		gtk_widget_show(abox->progress);
 	}

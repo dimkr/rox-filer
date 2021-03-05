@@ -74,7 +74,7 @@ static void cell_icon_render     (GtkCellRenderer		*cell,
 				      GdkRectangle	*cell_area,
 				      GdkRectangle	*expose_area,
 				      guint		flags);
-static GtkType cell_icon_get_type(void);
+static GType cell_icon_get_type(void);
 
 enum {
 	PROP_ZERO,
@@ -101,9 +101,9 @@ GtkCellRenderer *cell_icon_new(ViewDetails *view_details)
  ****************************************************************/
 
 
-static GtkType cell_icon_get_type(void)
+static GType cell_icon_get_type(void)
 {
-	static GtkType cell_icon_type = 0;
+	static GType cell_icon_type = 0;
 
 	if (!cell_icon_type)
 	{
@@ -316,7 +316,7 @@ static void cell_icon_render(GtkCellRenderer    *cell,
 
 	item = view_item->item;
 	size = get_style(cell);
-	color = &widget->style->base[icon->view_details->filer_window->selection_state];
+	color = &gtk_widget_get_style(widget)->base[icon->view_details->filer_window->selection_state];
 
 	/* Draw the icon */
 
@@ -330,19 +330,19 @@ static void cell_icon_render(GtkCellRenderer    *cell,
 			GdkRectangle area = *cell_area;
 			area.width = MIN(area.width, SMALL_WIDTH);
 			area.x = cell_area->x + cell_area->width - area.width;
-			draw_small_icon(window, widget->style, &area, item,
+			draw_small_icon(window, gtk_widget_get_style(widget), &area, item,
 					view_item->image, selected, color);
 
 			break;
 		}
 		case LARGE_ICONS:
-			draw_large_icon(window, widget->style, cell_area, item,
+			draw_large_icon(window, gtk_widget_get_style(widget), cell_area, item,
 					view_item->image, selected, color);
 			break;
 		case HUGE_ICONS:
 			if (!di_image(item)->huge_pixbuf)
 				pixmap_make_huge(di_image(item));
-			draw_huge_icon(window, widget->style, cell_area, item,
+			draw_huge_icon(window, gtk_widget_get_style(widget), cell_area, item,
 					view_item->image, selected, color);
 			break;
 		default:

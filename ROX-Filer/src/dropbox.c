@@ -114,8 +114,8 @@ GtkWidget *drop_box_new(const char *message)
 	g_signal_connect(button, "clicked",
 			G_CALLBACK(open_dir_clicked), drop_box);
 
-	gtk_tooltips_set_tip(tooltips, button,
-			_("Show the current choice in a filer window"), NULL);
+	gtk_widget_set_tooltip_text(button,
+			_("Show the current choice in a filer window"));
 
 	drop_box_set_path(drop_box, NULL);
 
@@ -251,10 +251,10 @@ static void drop_box_drag_data_received(GtkWidget *drop_box,
 	guchar *path = NULL;
 	gboolean success = FALSE;
 
-	if (!selection_data->data)
+	if (!gtk_selection_data_get_data(selection_data))
 		goto err; 		/* Timeout? */
 
-	uris = uri_list_to_glist(selection_data->data);
+	uris = uri_list_to_glist(gtk_selection_data_get_data(selection_data));
 
 	if (g_list_length(uris) != 1)
 	{

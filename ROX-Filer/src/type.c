@@ -982,7 +982,6 @@ void type_set_handler_dialog(MIME_type *type)
 	g_return_if_fail(type != NULL);
 
 	dialog = GTK_DIALOG(gtk_dialog_new());
-	gtk_dialog_set_has_separator(dialog, FALSE);
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_MOUSE);
 
 	g_object_set_data(G_OBJECT(dialog), "mime_type", type);
@@ -1011,8 +1010,8 @@ void type_set_handler_dialog(MIME_type *type)
 
 	g_object_set_data(G_OBJECT(dialog), "rox-dropbox", frame);
 
-	radios_pack(radios, GTK_BOX(dialog->vbox));
-	gtk_box_pack_start(GTK_BOX(dialog->vbox), frame, TRUE, TRUE, 0);
+	radios_pack(radios, GTK_BOX(gtk_dialog_get_content_area(dialog)));
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)), frame, TRUE, TRUE, 0);
 
 	g_signal_connect(frame, "path_dropped",
 			G_CALLBACK(drag_app_dropped), dialog);
@@ -1020,7 +1019,7 @@ void type_set_handler_dialog(MIME_type *type)
 			G_CALLBACK(clear_run_action), dialog);
 
 	hbox = gtk_hbox_new(FALSE, 4);
-	gtk_box_pack_start(GTK_BOX(dialog->vbox), hbox, FALSE, TRUE, 4);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)), hbox, FALSE, TRUE, 4);
 	gtk_box_pack_start(GTK_BOX(hbox), gtk_hseparator_new(), TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), gtk_label_new(_("OR")),
 						FALSE, TRUE, 0);
@@ -1028,7 +1027,7 @@ void type_set_handler_dialog(MIME_type *type)
 
 
 	hbox = gtk_hbox_new(FALSE, 4);
-	gtk_box_pack_start(GTK_BOX(dialog->vbox), hbox, FALSE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)), hbox, FALSE, TRUE, 0);
 
 	label = gtk_label_new(_("Enter a shell command:")),
 	gtk_misc_set_alignment(GTK_MISC(label), 0, .5);
@@ -1038,7 +1037,7 @@ void type_set_handler_dialog(MIME_type *type)
 			new_help_button(show_shell_help, NULL), FALSE, TRUE, 0);
 
 	entry = gtk_entry_new();
-	gtk_box_pack_start(GTK_BOX(dialog->vbox), entry, FALSE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)), entry, FALSE, TRUE, 0);
 	gtk_widget_grab_focus(entry);
 	g_object_set_data(G_OBJECT(dialog), "shell_command", entry);
 	gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
@@ -1060,11 +1059,11 @@ void type_set_handler_dialog(MIME_type *type)
 	gtk_dialog_add_button(dialog, GTK_STOCK_CLOSE, GTK_RESPONSE_CANCEL);
 
 	button = button_new_mixed(GTK_STOCK_OK, _("_Use Command"));
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_dialog_add_action_widget(dialog, button, GTK_RESPONSE_OK);
 
 	hbox = gtk_hbox_new(TRUE, 4);
-	gtk_box_pack_start(GTK_BOX(dialog->vbox), hbox, FALSE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(dialog)), hbox, FALSE, TRUE, 0);
 
 	gtk_dialog_set_default_response(dialog, GTK_RESPONSE_OK);
 
@@ -1452,7 +1451,7 @@ static guchar *read_theme(Option *option)
 	GtkOptionMenu *om = GTK_OPTION_MENU(option->widget);
 	GtkLabel *item;
 
-	item = GTK_LABEL(GTK_BIN(om)->child);
+	item = GTK_LABEL(gtk_bin_get_child(GTK_BIN(om)));
 
 	g_return_val_if_fail(item != NULL, g_strdup("ROX"));
 
@@ -1471,12 +1470,12 @@ static void update_theme(Option *option)
 	kids = gtk_container_get_children(GTK_CONTAINER(menu));
 	for (next = kids; next; next = next->next, i++)
 	{
-		GtkLabel *item = GTK_LABEL(GTK_BIN(next->data)->child);
+		GtkLabel *item = GTK_LABEL(gtk_bin_get_child(GTK_BIN(next->data)));
 		const gchar *label;
 
 		/* The label actually moves from the menu!! */
 		if (!item)
-			item = GTK_LABEL(GTK_BIN(om)->child);
+			item = GTK_LABEL(gtk_bin_get_child(GTK_BIN(om)));
 
 		label = gtk_label_get_text(item);
 
