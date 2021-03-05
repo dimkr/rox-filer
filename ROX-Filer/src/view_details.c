@@ -43,7 +43,6 @@
 #include "menu.h"
 #include "options.h"
 #include "cell_icon.h"
-#include "cell_text.h"
 
 /* These are the column numbers in the ListStore */
 #define COL_LEAF   0
@@ -1071,7 +1070,7 @@ static void set_column_mono_font(GtkWidget *widget, GObject *object)
 }
 
 #define ADD_TEXT_COLUMN(name, model_column) \
-	cell = cell_text_new();	\
+	cell = gtk_cell_renderer_text_new();	\
 	column = gtk_tree_view_column_new_with_attributes(name, cell, \
 					    "text", model_column,	\
 					    "foreground-gdk", COL_COLOUR, \
