@@ -396,18 +396,20 @@ static void process_message(GUIside *gui_side, const gchar *buffer)
 }
 
 /* Called when the child sends us a message */
-static void message_from_child(gpointer 	  data,
-			        gint     	  source,
-			        GdkInputCondition condition)
+static gboolean message_from_child(GIOChannel 	  *source,
+			        GIOCondition     	  condition,
+			        gpointer data)
 {
 	char buf[5];
 	GUIside	*gui_side = (GUIside *) data;
 	ABox	*abox = gui_side->abox;
 	GtkTextBuffer *text_buffer;
+	int     fd;
 
+	fd = g_io_channel_unix_get_fd(source);
 	text_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(abox->log));
 
-	if (read_exact(source, buf, 4))
+	if (read_exact(fd, buf, 4))
 	{
 		ssize_t message_len;
 		char	*buffer;
@@ -415,12 +417,12 @@ static void message_from_child(gpointer 	  data,
 		buf[4] = '\0';
 		message_len = strtol(buf, NULL, 16);
 		buffer = g_malloc(message_len + 1);
-		if (message_len > 0 && read_exact(source, buffer, message_len))
+		if (message_len > 0 && read_exact(fd, buffer, message_len))
 		{
 			buffer[message_len] = '\0';
 			process_message(gui_side, buffer);
 			g_free(buffer);
-			return;
+			return TRUE;
 		}
 		g_printerr("Child died in the middle of a message.\n");
 	}
@@ -453,6 +455,8 @@ static void message_from_child(gpointer 	  data,
 	}
 	else if (gui_side->show_info == FALSE)
 		gtk_widget_destroy(GTK_WIDGET(gui_side->abox));
+
+	return TRUE;
 }
 
 /* Scans src_dir, calling cb(item, dest_path) for each item */
@@ -793,6 +797,7 @@ static GUIside *start_action(GtkWidget *abox, ActionChild *func, gpointer data,
 	GUIside		*gui_side;
 	pid_t		child;
 	struct sigaction act;
+	GIOChannel  *chan;
 
 	if (pipe(filedes))
 	{
@@ -876,10 +881,14 @@ static GUIside *start_action(GtkWidget *abox, ActionChild *func, gpointer data,
 	g_signal_connect(abox, "abort_operation",
 			 G_CALLBACK(abort_operation), gui_side);
 
-	gui_side->input_tag = gdk_input_add_full(gui_side->from_child,
-						GDK_INPUT_READ,
+	chan = g_io_channel_unix_new(gui_side->from_child);
+	gui_side->input_tag = g_io_add_watch_full(chan,
+						0,
+						G_IO_IN,
 						message_from_child,
-						gui_side, NULL);
+						gui_side,
+						NULL);
+	g_io_channel_unref(chan);
 
 	return gui_side;
 }
