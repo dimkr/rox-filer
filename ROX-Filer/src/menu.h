@@ -20,8 +20,8 @@ extern GtkAccelGroup	*filer_keys;
 
 void menu_init(void);
 
-GtkItemFactory *menu_create(GtkItemFactoryEntry *def, int n_entries,
-			    const gchar *name, GtkAccelGroup *keys);
+GtkUIManager *menu_create(GtkActionEntry *def, int n_entries,
+			    const gchar *name, GtkAccelGroup *keys, const gchar *ui);
 void menu_set_items_shaded(GtkWidget *menu, gboolean shaded, int from, int n);
 void position_menu(GtkMenu *menu, gint *x, gint *y,
 		   gboolean  *push_in, gpointer data);
@@ -43,9 +43,11 @@ void show_new_file(FilerWindow *filer_window);
 void show_menu_new(FilerWindow *filer_window);
 
 /* Public menu handlers */
-void menu_rox_help(gpointer data, guint action, GtkWidget *widget);
-void menu_show_options(gpointer data, guint action, GtkWidget *widget);
-void open_home(gpointer data, guint action, GtkWidget *widget);
+void menu_rox_help_about(void);
+void menu_rox_help_dir(void);
+void menu_rox_manual(void);
+void menu_show_options(void);
+void open_home(void);
 void menu_show_shift_action(GtkWidget *menu_item, DirItem *item, gboolean next);
 
 #endif /* _MENU_H */

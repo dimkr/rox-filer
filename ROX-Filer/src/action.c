@@ -47,7 +47,6 @@
 #include "modechange.h"
 #include "find.h"
 #include "dir.h"
-#include "icon.h"
 #include "mount.h"
 #include "type.h"
 #include "xtypes.h"
@@ -153,7 +152,6 @@ static gboolean read_exact(int source, char *buffer, ssize_t len);
 static void do_mount(const guchar *path, gboolean mount);
 static gboolean printf_reply(int fd, gboolean ignore_quiet,
 			     const char *msg, ...);
-static gboolean remove_pinned_ok(GList *paths);
 
 /*			SUPPORT				*/
 
@@ -198,7 +196,7 @@ void show_condition_help(gpointer data)
 
 	text = gtk_label_new(NULL);
 	gtk_misc_set_padding(GTK_MISC(text), 2, 2);
-	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(help)->vbox), text);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(help))), text, TRUE, TRUE, 0);
 	gtk_label_set_selectable(GTK_LABEL(text), TRUE);
 	gtk_label_set_markup(GTK_LABEL(text), _(
 "<u>Quick Start</u>\n"
@@ -266,7 +264,7 @@ static void show_chmod_help(gpointer data)
 
 	text = gtk_label_new(NULL);
 	gtk_misc_set_padding(GTK_MISC(text), 2, 2);
-	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(help)->vbox), text);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(help))), text, TRUE, TRUE, 0);
 	gtk_label_set_selectable(GTK_LABEL(text), TRUE);
 	gtk_label_set_markup(GTK_LABEL(text), _(
 "Normally, you can just select a command from the menu (click \n"
@@ -318,7 +316,7 @@ static void show_settype_help(gpointer data)
 
 	text = gtk_label_new(NULL);
 	gtk_misc_set_padding(GTK_MISC(text), 2, 2);
-	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(help)->vbox), text);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(help))), text, TRUE, TRUE, 0);
 	gtk_label_set_selectable(GTK_LABEL(text), TRUE);
 	gtk_label_set_markup(GTK_LABEL(text), _(
 "Normally ROX-Filer determines the type of a regular file\n"
@@ -336,7 +334,7 @@ static void show_settype_help(gpointer data)
 
 	text = gtk_label_new(_(ATTR_MAN_PAGE));
 	gtk_misc_set_padding(GTK_MISC(text), 2, 2);
-	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(help)->vbox), text);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(help))), text, TRUE, TRUE, 0);
 
 	g_signal_connect(help, "response",
 			G_CALLBACK(gtk_widget_destroy), NULL);
@@ -398,18 +396,20 @@ static void process_message(GUIside *gui_side, const gchar *buffer)
 }
 
 /* Called when the child sends us a message */
-static void message_from_child(gpointer 	  data,
-			        gint     	  source,
-			        GdkInputCondition condition)
+static gboolean message_from_child(GIOChannel 	  *source,
+			        GIOCondition     	  condition,
+			        gpointer data)
 {
 	char buf[5];
 	GUIside	*gui_side = (GUIside *) data;
 	ABox	*abox = gui_side->abox;
 	GtkTextBuffer *text_buffer;
+	int     fd;
 
+	fd = g_io_channel_unix_get_fd(source);
 	text_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(abox->log));
 
-	if (read_exact(source, buf, 4))
+	if (read_exact(fd, buf, 4))
 	{
 		ssize_t message_len;
 		char	*buffer;
@@ -417,12 +417,12 @@ static void message_from_child(gpointer 	  data,
 		buf[4] = '\0';
 		message_len = strtol(buf, NULL, 16);
 		buffer = g_malloc(message_len + 1);
-		if (message_len > 0 && read_exact(source, buffer, message_len))
+		if (message_len > 0 && read_exact(fd, buffer, message_len))
 		{
 			buffer[message_len] = '\0';
 			process_message(gui_side, buffer);
 			g_free(buffer);
-			return;
+			return TRUE;
 		}
 		g_printerr("Child died in the middle of a message.\n");
 	}
@@ -455,6 +455,8 @@ static void message_from_child(gpointer 	  data,
 	}
 	else if (gui_side->show_info == FALSE)
 		gtk_widget_destroy(GTK_WIDGET(gui_side->abox));
+
+	return TRUE;
 }
 
 /* Scans src_dir, calling cb(item, dest_path) for each item */
@@ -795,6 +797,7 @@ static GUIside *start_action(GtkWidget *abox, ActionChild *func, gpointer data,
 	GUIside		*gui_side;
 	pid_t		child;
 	struct sigaction act;
+	GIOChannel  *chan;
 
 	if (pipe(filedes))
 	{
@@ -878,10 +881,14 @@ static GUIside *start_action(GtkWidget *abox, ActionChild *func, gpointer data,
 	g_signal_connect(abox, "abort_operation",
 			 G_CALLBACK(abort_operation), gui_side);
 
-	gui_side->input_tag = gdk_input_add_full(gui_side->from_child,
-						GDK_INPUT_READ,
+	chan = g_io_channel_unix_new(gui_side->from_child);
+	gui_side->input_tag = g_io_add_watch_full(chan,
+						0,
+						G_IO_IN,
 						message_from_child,
-						gui_side, NULL);
+						gui_side,
+						NULL);
+	g_io_channel_unref(chan);
 
 	return gui_side;
 }
@@ -2205,9 +2212,6 @@ void action_delete(GList *paths)
 	GUIside		*gui_side;
 	GtkWidget	*abox;
 
-	if (!remove_pinned_ok(paths))
-		return;
-
 	abox = abox_new(_("Delete"), o_action_delete.int_value);
 	if(paths && paths->next)
 		abox_set_percentage(ABOX(abox), 0);
@@ -2572,89 +2576,6 @@ void action_init(void)
 			  "action_umount_command", "umount");
 	option_add_string(&o_action_eject_command,
 			  "action_eject_command", "eject");
-}
-
-#define MAX_ASK 4
-
-/* Check to see if any of the selected items (or their children) are
- * on the pinboard or panel. If so, ask for confirmation.
- *
- * TRUE if it's OK to lose them.
- */
-static gboolean remove_pinned_ok(GList *paths)
-{
-	GList		*ask = NULL, *next;
-	GString		*message;
-	int		i, ask_n = 0;
-	gboolean	retval;
-
-	for (; paths; paths = paths->next)
-	{
-		guchar	*path = (guchar *) paths->data;
-
-		if (icons_require(path))
-		{
-			if (++ask_n > MAX_ASK)
-				break;
-			ask = g_list_append(ask, path);
-		}
-	}
-
-	if (!ask)
-		return TRUE;
-
-	if (ask_n > MAX_ASK)
-	{
-		message = g_string_new(_("Deleting items such as "));
-		ask_n--;
-	}
-	else if (ask_n == 1)
-		message = g_string_new(_("Deleting the item "));
-	else
-		message = g_string_new(_("Deleting the items "));
-
-	i = 0;
-	for (next = ask; next; next = next->next)
-	{
-		guchar	*path = (guchar *) next->data;
-		guchar	*leaf;
-
-		leaf = strrchr(path, '/');
-		if (leaf)
-			leaf++;
-		else
-			leaf = path;
-
-		g_string_append_c(message, '`');
-		g_string_append(message, leaf);
-		g_string_append_c(message, '\'');
-		i++;
-		if (i == ask_n - 1 && i > 0)
-			g_string_append(message, _(" and "));
-		else if (i < ask_n)
-			g_string_append(message, ", ");
-	}
-
-	g_list_free(ask);
-
-	if (ask_n == 1)
-		message = g_string_append(message,
-				_(" will affect some items on the pinboard "
-				  "or panel - really delete it?"));
-	else
-	{
-		if (ask_n > MAX_ASK)
-			message = g_string_append_c(message, ',');
-		message = g_string_append(message,
-				_(" will affect some items on the pinboard "
-					"or panel - really delete them?"));
-	}
-
-	retval = confirm(message->str, GTK_STOCK_DELETE, NULL);
-
-	g_string_free(message, TRUE);
-
-	return retval;
 }
 
 void set_find_string_colour(GtkWidget *widget, const guchar *string)

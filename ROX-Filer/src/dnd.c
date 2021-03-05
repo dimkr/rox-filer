@@ -45,7 +45,6 @@
 #include "support.h"
 #include "options.h"
 #include "run.h"
-#include "pinboard.h"
 #include "dir.h"
 #include "diritem.h"
 #include "usericons.h"
@@ -71,14 +70,6 @@ gint motion_buttons_pressed = 0;
 
 /* Static prototypes */
 static void set_xds_prop(GdkDragContext *context, const char *text);
-static void desktop_drag_data_received(GtkWidget      		*widget,
-				GdkDragContext  	*context,
-				gint            	x,
-				gint            	y,
-				GtkSelectionData 	*selection_data,
-				guint               	info,
-				guint32             	time,
-				FilerWindow		*filer_window);
 static void got_data_xds_reply(GtkWidget 		*widget,
 		  		GdkDragContext 		*context,
 				GtkSelectionData 	*selection_data,
@@ -107,7 +98,10 @@ static void drag_data_received(GtkWidget      		*widget,
 			gpointer		user_data);
 static gboolean spring_now(gpointer data);
 static void spring_win_destroyed(GtkWidget *widget, gpointer data);
-static void menuitem_response(gpointer data, guint action, GtkWidget *widget);
+static void menuitem_response_copy(void);
+static void menuitem_response_move(void);
+static void menuitem_response_link_rel(void);
+static void menuitem_response_link_abs(void);
 static void prompt_action(GList *paths, gchar *dest);
 
 typedef enum {
@@ -119,12 +113,21 @@ typedef enum {
 
 #undef N_
 #define N_(x) x
-static GtkItemFactoryEntry menu_def[] = {
-{N_("Copy"),		NULL, menuitem_response, MENU_COPY, 	NULL},
-{N_("Move"),		NULL, menuitem_response, MENU_MOVE, 	NULL},
-{N_("Link (relative)"),	NULL, menuitem_response, MENU_LINK_REL, NULL},
-{N_("Link (absolute)"),	NULL, menuitem_response, MENU_LINK_ABS,	NULL},
+static GtkActionEntry menu_def[] = {
+{"Copy",			NULL, 	N_("Copy"),				NULL, NULL, menuitem_response_copy},
+{"Move",			NULL,	N_("Move"),				NULL, NULL, menuitem_response_move},
+{"Link (relative)",	NULL,	N_("Link (relative)"),	NULL, NULL, menuitem_response_link_rel},
+{"Link (absolute)",	NULL,	N_("Link (absolute)"),	NULL, NULL, menuitem_response_link_abs},
 };
+static const char menu_ui[] = \
+	"<ui>" \
+		"<popup name='dnd'>" \
+			"<menuitem action='Copy'/>" \
+			"<menuitem action='Move'/>" \
+			"<menuitem action='Link (relative)'/>" \
+			"<menuitem action='Link (absolute)'/>" \
+		"</popup>" \
+	"</ui>";
 static GtkWidget *dnd_menu = NULL;
 
 /* Possible values for drop_dest_type (can also be NULL).
@@ -178,7 +181,7 @@ void dnd_init(void)
 /* Set the XdndDirectSave0 property on the source window for this context */
 static void set_xds_prop(GdkDragContext *context, const char *text)
 {
-	gdk_property_change(context->source_window,
+	gdk_property_change(gdk_drag_context_get_source_window(context),
 			XdndDirectSave0,
 			xa_text_plain, 8,
 			GDK_PROP_MODE_REPLACE,
@@ -191,7 +194,7 @@ static char *get_xds_prop(GdkDragContext *context)
 	guchar	*prop_text;
 	gint	length;
 
-	if (gdk_property_get(context->source_window,
+	if (gdk_property_get(gdk_drag_context_get_source_window(context),
 			XdndDirectSave0,
 			xa_text_plain,
 			0, MAXURILEN,
@@ -212,7 +215,7 @@ static char *get_xds_prop(GdkDragContext *context)
 /* Is the sender willing to supply this target type? */
 gboolean provides(GdkDragContext *context, GdkAtom target)
 {
-	GList	    *targets = context->targets;
+	GList	    *targets = gdk_drag_context_list_targets(context);
 
 	while (targets && ((GdkAtom) targets->data != target))
 		targets = targets->next;
@@ -394,7 +397,7 @@ void drag_data_get(GtkWidget          		*widget,
 	GdkAtom		type;
 	guchar		*path;
 
-	type = selection_data->target;
+	type = gtk_selection_data_get_target(selection_data);
 
 	switch (info)
 	{
@@ -463,22 +466,6 @@ void make_drop_target(GtkWidget *widget, GtkDestDefaults defaults)
 	g_signal_connect(widget, "drag_drop", G_CALLBACK(drag_drop), NULL);
 	g_signal_connect(widget, "drag_data_received",
 			G_CALLBACK(drag_data_received), NULL);
-}
-
-/* Like drag_set_dest, but for a pinboard-type widget */
-void drag_set_pinboard_dest(GtkWidget *widget)
-{
-	GtkTargetEntry 	target_table[] = {
-		{"text/uri-list", 0, TARGET_URI_LIST},
-	};
-
-	gtk_drag_dest_set(widget,
-			  GTK_DEST_DEFAULT_DROP,
-			  target_table,
-			  sizeof(target_table) / sizeof(*target_table),
-			  GDK_ACTION_LINK);
-	g_signal_connect(widget, "drag_data_received",
-			    G_CALLBACK(desktop_drag_data_received), NULL);
 }
 
 /* item is the item the file is held over, NULL for directory background.
@@ -635,67 +622,6 @@ static gboolean drag_drop(GtkWidget 	  *widget,
 	return TRUE;
 }
 
-/* Called when a text/uri-list arrives */
-static void desktop_drag_data_received(GtkWidget      	*widget,
-				       GdkDragContext  	*context,
-				       gint            	x,
-				       gint            	y,
-				       GtkSelectionData *selection_data,
-				       guint            info,
-				       guint32          time,
-				       FilerWindow	*filer_window)
-{
-	GList	*uris, *next;
-	char *error_example = NULL;
-	gint dx, dy;
-
-	if (!selection_data->data)
-	{
-		/* Timeout? */
-		return;
-	}
-
-	if (pinboard_drag_in_progress)
-	{
-		pinboard_move_icons();
-		return;
-	}
-
-	gdk_window_get_position(widget->window, &dx, &dy);
-	x += dx;
-	y += dy;
-
-	uris = uri_list_to_glist(selection_data->data);
-
-	for (next = uris; next; next = next->next)
-	{
-		guchar	*path;
-
-		path = get_local_path((EscapedPath *) next->data);
-		if (path)
-		{
-			pinboard_pin(path, NULL, x, y, NULL);
-			x += 64;
-			g_free(path);
-		}
-		else if (!error_example)
-			error_example = g_strdup(next->data);
-
-		g_free(next->data);
-	}
-
-	if (uris)
-		g_list_free(uris);
-
-	if (error_example)
-	{
-		delayed_error(_("Failed to add some items to the pinboard, "
-			"because they are on a remote machine. For example:\n"
-			"\n%s"), error_example);
-		g_free(error_example);
-	}
-}
-
 /* Convert Mozilla's text/x-moz-uri into a text/uri-list */
 static void got_moz_uri(GtkWidget 		*widget,
 			GdkDragContext 		*context,
@@ -704,8 +630,8 @@ static void got_moz_uri(GtkWidget 		*widget,
 {
 	gchar *utf8, *uri_list, *eol;
 
-	utf8 = g_utf16_to_utf8((gunichar2 *) selection_data->data,
-			(glong) selection_data->length,
+	utf8 = g_utf16_to_utf8((gunichar2 *) gtk_selection_data_get_data(selection_data),
+			(glong) gtk_selection_data_get_length(selection_data),
 			NULL, NULL, NULL);
 
 	eol = utf8 ? strchr(utf8, '\n') : NULL;
@@ -738,7 +664,7 @@ static void drag_data_received(GtkWidget      	*widget,
 			       guint32          time,
 			       gpointer		user_data)
 {
-	if (!selection_data->data)
+	if (!gtk_selection_data_get_data(selection_data))
 	{
 		/* Timeout? */
 		gtk_drag_finish(context, FALSE, FALSE, time);	/* Failure */
@@ -755,7 +681,7 @@ static void drag_data_received(GtkWidget      	*widget,
 			got_data_raw(widget, context, selection_data, time);
 			break;
 		case TARGET_URI_LIST:
-			got_uri_list(widget, context, selection_data->data,
+			got_uri_list(widget, context, gtk_selection_data_get_data(selection_data),
 					time);
 			break;
 		case TARGET_MOZ_URL:
@@ -775,13 +701,13 @@ static void got_data_xds_reply(GtkWidget 		*widget,
 				guint32             	time)
 {
 	gboolean	mark_unsafe = TRUE;
-	char		response = *selection_data->data;
+	char		response = *gtk_selection_data_get_data(selection_data);
 	const char	*error = NULL;
 	char		*dest_path;
 
 	dest_path = g_dataset_get_data(context, "drop_dest_path");
 
-	if (selection_data->length != 1)
+	if (gtk_selection_data_get_length(selection_data) != 1)
 		response = '?';
 
 	if (response == 'F')
@@ -836,11 +762,11 @@ static void got_data_raw(GtkWidget 		*widget,
 	const char	*error = NULL;
 	const char	*dest_path;
 
-	g_return_if_fail(selection_data->data != NULL);
+	g_return_if_fail(gtk_selection_data_get_data(selection_data) != NULL);
 
 	dest_path = g_dataset_get_data(context, "drop_dest_path");
 
-	if (context->action == GDK_ACTION_ASK)
+	if (gdk_drag_context_get_actions(context) == GDK_ACTION_ASK)
 	{
 		gtk_drag_finish(context, FALSE, FALSE, time);	/* Failure */
 		delayed_error(_("Sorry, can't display a menu of actions "
@@ -852,7 +778,7 @@ static void got_data_raw(GtkWidget 		*widget,
 	{
 		/* The data needs to be sent to an application */
 		run_with_data(dest_path,
-				selection_data->data, selection_data->length);
+				gtk_selection_data_get_data(selection_data), gtk_selection_data_get_length(selection_data));
 		gtk_drag_finish(context, TRUE, FALSE, time);    /* Success! */
 		return;
 	}
@@ -871,8 +797,8 @@ static void got_data_raw(GtkWidget 		*widget,
 	else
 	{
 		if (write(fd,
-			selection_data->data,
-			selection_data->length) == -1)
+			gtk_selection_data_get_data(selection_data),
+			gtk_selection_data_get_length(selection_data)) == -1)
 				error = g_strerror(errno);
 
 		if (close(fd) == -1 && !error)
@@ -960,7 +886,7 @@ static void got_uri_list(GtkWidget 		*widget,
 
 	if (!uri_list)
 		error = _("No URIs in the text/uri-list (nothing to do!)");
-	else if (context->action != GDK_ACTION_ASK && type == drop_dest_prog)
+	else if (gdk_drag_context_get_actions(context) != GDK_ACTION_ASK && type == drop_dest_prog)
 		run_with_files(dest_path, uri_list);
 	else if ((!uri_list->next) && !uri_is_local(uri_list->data))
 	{
@@ -1025,13 +951,13 @@ static void got_uri_list(GtkWidget 		*widget,
 				"machine - I can't operate on multiple "
 				"remote files - sorry.");
 		}
-		else if (context->action == GDK_ACTION_ASK)
+		else if (gdk_drag_context_get_actions(context) == GDK_ACTION_ASK)
 			prompt_action(local_paths, dest_path);
-		else if (context->action == GDK_ACTION_MOVE)
+		else if (gdk_drag_context_get_actions(context) == GDK_ACTION_MOVE)
 			action_move(local_paths, dest_path, NULL, -1);
-		else if (context->action == GDK_ACTION_COPY)
+		else if (gdk_drag_context_get_actions(context) == GDK_ACTION_COPY)
 			action_copy(local_paths, dest_path, NULL, -1);
-		else if (context->action == GDK_ACTION_LINK)
+		else if (gdk_drag_context_get_actions(context) == GDK_ACTION_LINK)
 			action_link(local_paths, dest_path, NULL, TRUE);
 		else
 			error = _("Unknown action requested");
@@ -1051,7 +977,7 @@ static void got_uri_list(GtkWidget 		*widget,
 }
 
 /* Called when an item from the ACTION_ASK menu is chosen */
-static void menuitem_response(gpointer data, guint action, GtkWidget *widget)
+static void menuitem_response(guint action)
 {
 	if (action == MENU_MOVE)
 		action_move(prompt_local_paths, prompt_dest_path, NULL, -1);
@@ -1061,6 +987,26 @@ static void menuitem_response(gpointer data, guint action, GtkWidget *widget)
 		action_link(prompt_local_paths, prompt_dest_path, NULL, TRUE);
 	else if (action == MENU_LINK_ABS)
 		action_link(prompt_local_paths, prompt_dest_path, NULL, FALSE);
+}
+
+static void menuitem_response_move(void)
+{
+	return menuitem_response(MENU_MOVE);
+}
+
+static void menuitem_response_copy(void)
+{
+	return menuitem_response(MENU_COPY);
+}
+
+static void menuitem_response_link_rel(void)
+{
+	return menuitem_response(MENU_LINK_REL);
+}
+
+static void menuitem_response_link_abs(void)
+{
+	return menuitem_response(MENU_LINK_ABS);
 }
 
 /* When some local files are dropped somewhere with ACTION_ASK, this
@@ -1085,12 +1031,12 @@ static void prompt_action(GList *paths, gchar *dest)
 
 	if (!dnd_menu)
 	{
-		GtkItemFactory	*item_factory;
+		GtkUIManager	*item_factory;
 
 		item_factory = menu_create(menu_def,
 				sizeof(menu_def) / sizeof(*menu_def),
-				"<dnd>", NULL);
-		dnd_menu = gtk_item_factory_get_widget(item_factory, "<dnd>");
+				"dnd", NULL, menu_ui);
+		dnd_menu = gtk_ui_manager_get_widget(item_factory, "/ui/dnd");
 	}
 
 	/* Shade 'Set Icon' if there are multiple files */
@@ -1113,7 +1059,7 @@ static void prompt_action(GList *paths, gchar *dest)
  * opened in a new window, unless dnd_spring_abort is called first.
  */
 
-static gint spring_timeout = -1;
+static guint spring_timeout = -1;
 static GdkDragContext *spring_context = NULL;
 static FilerWindow *spring_window = NULL;
 static FilerWindow *spring_src_window = NULL;
@@ -1131,7 +1077,7 @@ void dnd_spring_load(GdkDragContext *context, FilerWindow *src_win)
 	spring_context = context;
 	g_object_ref(spring_context);
 	spring_src_window = src_win;
-	spring_timeout = gtk_timeout_add(
+	spring_timeout = g_timeout_add(
 			o_dnd_spring_delay.int_value, spring_now, NULL);
 }
 
@@ -1142,7 +1088,7 @@ void dnd_spring_abort(void)
 
 	g_object_unref(spring_context);
 	spring_context = NULL;
-	gtk_timeout_remove(spring_timeout);
+	g_source_remove(spring_timeout);
 }
 
 /* If all mod keys are released, no buttons are pressed, and the
@@ -1223,10 +1169,10 @@ static gboolean spring_now(gpointer data)
 						spring_src_window, NULL);
 		if (spring_window)
 		{
-			gtk_timeout_add(500, spring_check_idle, NULL);
+			g_timeout_add(500, spring_check_idle, NULL);
 			g_signal_connect(spring_window->window, "destroy",
 					G_CALLBACK(spring_win_destroyed), NULL);
-			centre_window(spring_window->window->window, x, y);
+			centre_window(gtk_widget_get_window(spring_window->window), x, y);
 		}
 	}
 	spring_in_progress--;
@@ -1408,7 +1354,7 @@ void dnd_motion_grab_pointer(void)
 {
 	g_return_if_fail(motion_widget != NULL);
 
-	gdk_pointer_grab(motion_widget->window, FALSE,
+	gdk_pointer_grab(gtk_widget_get_window(motion_widget), FALSE,
 			GDK_POINTER_MOTION_MASK |
 			GDK_BUTTON_RELEASE_MASK,
 			FALSE, NULL, GDK_CURRENT_TIME);

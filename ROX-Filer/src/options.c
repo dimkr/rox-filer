@@ -83,11 +83,6 @@
 #include "gui_support.h"
 #include "support.h"
 
-/* Add all option tooltips to this group */
-static GtkTooltips *option_tooltips = NULL;
-#define OPTION_TIP(widget, tip)	\
-	gtk_tooltips_set_tip(option_tooltips, widget, tip, NULL)
-
 /* The Options window. NULL if not yet created. */
 static GtkWidget *window = NULL;
 
@@ -295,9 +290,6 @@ static void store_backup(gpointer key, gpointer value, gpointer data)
  */
 GtkWidget *options_show(void)
 {
-	if (!option_tooltips)
-		option_tooltips = gtk_tooltips_new();
-
 	/* For debugging
 	if (g_hash_table_size(loading) != 0)
 	{
@@ -380,7 +372,7 @@ GList *build_numentry_base(Option *option, xmlNode *node,
 		add_to_size_group(node, label_wid);
 	}
 
-	spin = gtk_spin_button_new(adj, adj->step_increment, 0);
+	spin = gtk_spin_button_new(adj, gtk_adjustment_get_step_increment(adj), 0);
 	gtk_entry_set_width_chars(GTK_ENTRY(spin),
 			width > 1 ? width + 1 : 2);
 	gtk_box_pack_start(GTK_BOX(hbox), spin, FALSE, TRUE, 0);
@@ -491,7 +483,7 @@ static void get_new_colour(GtkWidget *ok, Option *option)
 
 	g_return_if_fail(current_csel_box != NULL);
 
-	csel = current_csel_box->colorsel;
+	csel = gtk_color_selection_dialog_get_color_selection(current_csel_box);
 
 	gtk_color_selection_get_current_color(GTK_COLOR_SELECTION(csel), &c);
 
@@ -506,6 +498,7 @@ static void open_coloursel(GtkWidget *button, Option *option)
 {
 	GtkColorSelectionDialog	*csel;
 	GtkWidget		*dialog, *patch;
+	GValue 			value = G_VALUE_INIT;
 
 	if (current_csel_box)
 		gtk_widget_destroy(GTK_WIDGET(current_csel_box));
@@ -517,17 +510,26 @@ static void open_coloursel(GtkWidget *button, Option *option)
 
 	g_signal_connect(dialog, "destroy",
 			G_CALLBACK(gtk_widget_destroyed), &current_csel_box);
-	gtk_widget_hide(csel->help_button);
-	g_signal_connect_swapped(csel->cancel_button, "clicked",
+	g_value_init(&value, G_TYPE_POINTER);
+	g_object_get_property(G_OBJECT(csel), "help-button", &value);
+	gtk_widget_hide(GTK_WIDGET(g_value_get_pointer(&value)));
+	g_value_unset(&value);
+	g_value_init(&value, G_TYPE_POINTER);
+	g_object_get_property(G_OBJECT(csel), "cancel-button", &value);
+	g_signal_connect_swapped(g_value_get_pointer(&value), "clicked",
 			G_CALLBACK(gtk_widget_destroy), dialog);
-	g_signal_connect(csel->ok_button, "clicked",
+	g_value_unset(&value);
+	g_value_init(&value, G_TYPE_POINTER);
+	g_object_get_property(G_OBJECT(csel), "ok-button", &value);
+	g_signal_connect(G_OBJECT(g_value_get_pointer(&value)), "clicked",
 			G_CALLBACK(get_new_colour), option);
+	g_value_unset(&value);
 
-	patch = GTK_BIN(button)->child;
+	patch = gtk_bin_get_child(GTK_BIN(button));
 
 	gtk_color_selection_set_current_color(
-			GTK_COLOR_SELECTION(csel->colorsel),
-			&patch->style->bg[GTK_STATE_NORMAL]);
+			GTK_COLOR_SELECTION(gtk_color_selection_dialog_get_color_selection(csel)),
+			&gtk_widget_get_style(patch)->bg[GTK_STATE_NORMAL]);
 
 	gtk_widget_show(dialog);
 }
@@ -560,12 +562,12 @@ static void toggle_active_font(GtkToggleButton *toggle, Option *option)
 
 	if (gtk_toggle_button_get_active(toggle))
 	{
-		gtk_widget_set_sensitive(option->widget->parent, TRUE);
+		gtk_widget_set_sensitive(gtk_widget_get_parent(option->widget), TRUE);
 		gtk_label_set_text(GTK_LABEL(option->widget), "Sans 12");
 	}
 	else
 	{
-		gtk_widget_set_sensitive(option->widget->parent, FALSE);
+		gtk_widget_set_sensitive(gtk_widget_get_parent(option->widget), FALSE);
 		gtk_label_set_text(GTK_LABEL(option->widget),
 				   _("(use default)"));
 	}
@@ -612,7 +614,7 @@ static void may_add_tip(GtkWidget *widget, xmlNode *element)
 	tip = g_strstrip(g_strdup(data));
 	g_free(data);
 	if (*tip)
-		OPTION_TIP(widget, _(tip));
+		gtk_widget_set_tooltip_text(widget, _(tip));
 	g_free(tip);
 }
 
@@ -992,17 +994,17 @@ static GtkWidget *build_window_frame(GtkTreeView **tree_view)
 	gtk_box_pack_start(GTK_BOX(tl_vbox), actions, FALSE, TRUE, 0);
 
 	revert_widget = button_new_mixed(GTK_STOCK_UNDO, _("_Revert"));
-	GTK_WIDGET_SET_FLAGS(revert_widget, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(revert_widget, TRUE);
 	gtk_box_pack_start(GTK_BOX(actions), revert_widget, FALSE, TRUE, 0);
 	g_signal_connect(revert_widget, "clicked",
 			 G_CALLBACK(revert_options), NULL);
-	gtk_tooltips_set_tip(option_tooltips, revert_widget,
+	gtk_widget_set_tooltip_text(revert_widget,
 			_("Restore all choices to how they were when the "
-			  "Options box was opened."), NULL);
+			  "Options box was opened."));
 	gtk_widget_set_sensitive(revert_widget, check_anything_changed());
 
 	button = gtk_button_new_from_stock(GTK_STOCK_OK);
-	GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+	gtk_widget_set_can_default(button, TRUE);
 	gtk_box_pack_start(GTK_BOX(actions), button, FALSE, TRUE, 0);
 	g_signal_connect_swapped(button, "clicked",
 				G_CALLBACK(gtk_widget_destroy), window);
@@ -1014,13 +1016,13 @@ static GtkWidget *build_window_frame(GtkTreeView **tree_view)
 	{
 		string = g_strdup_printf(_("Choices will be saved as:\n%s"),
 					save_path);
-		gtk_tooltips_set_tip(option_tooltips, button, string, NULL);
+		gtk_widget_set_tooltip_text(button, string);
 		g_free(string);
 		g_free(save_path);
 	}
 	else
-		gtk_tooltips_set_tip(option_tooltips, button,
-				_("(saving disabled by CHOICESPATH)"), NULL);
+		gtk_widget_set_tooltip_text(button,
+				_("(saving disabled by CHOICESPATH)"));
 
 	if (tree_view)
 		*tree_view = GTK_TREE_VIEW(tv);
@@ -1283,7 +1285,7 @@ static void update_font(Option *option)
 	if (active)
 	{
 		gtk_toggle_button_set_active(active, have_font);
-		gtk_widget_set_sensitive(option->widget->parent, have_font);
+		gtk_widget_set_sensitive(gtk_widget_get_parent(option->widget), have_font);
 	}
 
 	gtk_label_set_text(GTK_LABEL(option->widget),
@@ -1324,7 +1326,7 @@ static guchar *read_numentry(Option *option)
 static guchar *read_slider(Option *option)
 {
 	return g_strdup_printf("%d", (int)
-		gtk_range_get_adjustment(GTK_RANGE(option->widget))->value);
+		gtk_range_get_adjustment(GTK_RANGE(option->widget)));
 }
 
 static guchar *read_radio_group(Option *option)
@@ -1350,7 +1352,7 @@ static guchar *read_font(Option *option)
 
 static guchar *read_colour(Option *option)
 {
-	GtkStyle *style = GTK_BIN(option->widget)->child->style;
+	GtkStyle *style = gtk_widget_get_style(gtk_bin_get_child(GTK_BIN(option->widget)));
 
 	return g_strdup_printf("#%04x%04x%04x",
 			style->bg[GTK_STATE_NORMAL].red,
@@ -1521,7 +1523,7 @@ static GList *build_slider(Option *option, xmlNode *node, guchar *label)
 	slide = gtk_hscale_new(adj);
 
 	if (fixed)
-		gtk_widget_set_size_request(slide, adj->upper, 24);
+		gtk_widget_set_size_request(slide, gtk_adjustment_get_upper(adj), 24);
 	if (showvalue)
 	{
 		gtk_scale_set_draw_value(GTK_SCALE(slide), TRUE);
@@ -1531,7 +1533,7 @@ static GList *build_slider(Option *option, xmlNode *node, guchar *label)
 	}
 	else
 		gtk_scale_set_draw_value(GTK_SCALE(slide), FALSE);
-	GTK_WIDGET_UNSET_FLAGS(slide, GTK_CAN_FOCUS);
+	gtk_widget_set_can_focus(slide, FALSE);
 
 	may_add_tip(slide, node);
 
@@ -1754,7 +1756,7 @@ static GList *build_font(Option *option, xmlNode *node, guchar *label)
 
 	option->update_widget = update_font;
 	option->read_widget = read_font;
-	option->widget = GTK_BIN(button)->child;
+	option->widget = gtk_bin_get_child(GTK_BIN(button));
 	may_add_tip(button, node);
 
 	g_object_set_data(G_OBJECT(option->widget), "rox_override", active);
@@ -1769,17 +1771,17 @@ static void button_patch_set_colour(GtkWidget *button, GdkColor *colour)
 	GtkStyle   	*style;
 	GtkWidget	*patch;
 
-	patch = GTK_BIN(button)->child;
+	patch = gtk_bin_get_child(GTK_BIN(button));
 
-	style = gtk_style_copy(GTK_WIDGET(patch)->style);
+	style = gtk_style_copy(gtk_widget_get_style(GTK_WIDGET(patch)));
 	style->bg[GTK_STATE_NORMAL].red = colour->red;
 	style->bg[GTK_STATE_NORMAL].green = colour->green;
 	style->bg[GTK_STATE_NORMAL].blue = colour->blue;
 	gtk_widget_set_style(patch, style);
 	g_object_unref(G_OBJECT(style));
 
-	if (GTK_WIDGET_REALIZED(patch))
-		gdk_window_clear(patch->window);
+	if (gtk_widget_get_realized(patch))
+		gdk_window_clear(gtk_widget_get_window(patch));
 }
 
 static void load_options(xmlDoc *doc)

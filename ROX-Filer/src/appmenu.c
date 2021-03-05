@@ -412,7 +412,7 @@ static void build_app_menu(const char *app_dir, DirItem *app_item)
 		gtk_widget_show(item);
 		current_items = g_list_prepend(current_items, item);
 		g_signal_connect(item, "activate", G_CALLBACK(show_app_help), NULL);
-		gtk_label_set_text(GTK_LABEL(GTK_BIN(item)->child), _("Help"));
+		gtk_label_set_text(GTK_LABEL(gtk_bin_get_child(GTK_BIN(item))), _("Help"));
 	}
 	g_free(help_dir);
 

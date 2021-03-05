@@ -336,7 +336,7 @@ static void toolbar_help_clicked(GtkWidget *widget, FilerWindow *filer_window)
 	event = get_current_event(GDK_BUTTON_RELEASE);
 	if (event->type == GDK_BUTTON_RELEASE &&
 			((GdkEventButton *) event)->button != 1)
-		menu_rox_help(NULL, HELP_MANUAL, NULL);
+		menu_rox_manual();
 	else
 		filer_opendir(make_path(app_dir, "Help"), NULL, NULL);
 	gdk_event_free(event);
@@ -510,10 +510,7 @@ static void toolbar_details_clicked(GtkWidget *widget,
 	if (event->type == GDK_BUTTON_RELEASE &&
 		((GdkEventButton *)event)->button == 1)
 	{
-		if (filer_window->view_type == VIEW_TYPE_DETAILS)
-			filer_set_view_type(filer_window, VIEW_TYPE_COLLECTION);
-		else
-			filer_set_view_type(filer_window, VIEW_TYPE_DETAILS);
+		filer_set_view_type(filer_window, VIEW_TYPE_DETAILS);
 	}
 	else
 	{
@@ -521,33 +518,8 @@ static void toolbar_details_clicked(GtkWidget *widget,
 
 		if (((GdkEventButton *)event)->button == 2)
 			action = DETAILS_NONE;
-		else if (filer_window->view_type != VIEW_TYPE_COLLECTION)
-			action = filer_window->details_type;
 		else
-			switch (filer_window->details_type)
-			{
-				case DETAILS_NONE:
-					action = DETAILS_SIZE;
-					break;
-				case DETAILS_SIZE:
-					action = DETAILS_PERMISSIONS;
-					break;
-				case DETAILS_PERMISSIONS:
-					action = DETAILS_TYPE;
-					break;
-				case DETAILS_TYPE:
-					action = DETAILS_TIMES;
-					break;
-				case DETAILS_TIMES:
-					action = DETAILS_NONE;
-					break;
-				default:
-					action = DETAILS_NONE;
-					break;
-			}
-
-		if (filer_window->view_type != VIEW_TYPE_COLLECTION)
-			filer_set_view_type(filer_window, VIEW_TYPE_COLLECTION);
+			action = filer_window->details_type;
 
 		if (action != filer_window->details_type)
 			display_set_layout(filer_window,
@@ -645,6 +617,7 @@ static GtkWidget *create_toolbar(FilerWindow *filer_window)
 {
 	GtkWidget	*bar;
 	GtkWidget	*b;
+	GtkToolItem	*item;
 	int i;
 	int width;
 
@@ -690,8 +663,9 @@ static GtkWidget *create_toolbar(FilerWindow *filer_window)
 		filer_window->toolbar_text = gtk_label_new("");
 		gtk_misc_set_alignment(GTK_MISC(filer_window->toolbar_text),
 					0, 0.5);
-		gtk_toolbar_append_widget(GTK_TOOLBAR(bar),
-				filer_window->toolbar_text, NULL, NULL);
+		item = gtk_tool_item_new();
+		gtk_container_add(GTK_CONTAINER(item), filer_window->toolbar_text);
+		gtk_toolbar_insert(GTK_TOOLBAR(bar), item, -1);
 	}
 
 	return bar;
@@ -749,27 +723,25 @@ static gint toolbar_button_released(GtkButton *button,
 static GtkWidget *add_button(GtkWidget *bar, Tool *tool,
 				FilerWindow *filer_window)
 {
-	GtkWidget 	*button, *icon_widget;
+	GtkToolItem *button;
 
-	icon_widget = gtk_image_new_from_stock(tool->name,
-						GTK_ICON_SIZE_LARGE_TOOLBAR);
+	if (filer_window) {
+		button = gtk_toggle_tool_button_new_from_stock(tool->name);
+	} else {
+		button = gtk_tool_button_new_from_stock(tool->name);
+	}
 
-	button = gtk_toolbar_insert_element(GTK_TOOLBAR(bar),
-			   filer_window ? GTK_TOOLBAR_CHILD_BUTTON
-					: GTK_TOOLBAR_CHILD_TOGGLEBUTTON,
-			   NULL,
-			   _(tool->label),
-			   _(tool->tip), NULL,
-			   icon_widget,
-			   NULL, NULL,	/* CB, userdata */
-			   GTK_TOOLBAR(bar)->num_children);
-	GTK_WIDGET_UNSET_FLAGS(button, GTK_CAN_FOCUS);
+	gtk_tool_item_set_tooltip_text(button, _(tool->tip));
+
+	gtk_toolbar_insert(GTK_TOOLBAR(bar), button, -1);
+
+	gtk_widget_set_can_focus(GTK_WIDGET(button), FALSE);
 
 	if (o_toolbar.int_value == TOOLBAR_HORIZONTAL)
 	{
 		GtkWidget *hbox, *label;
 		GList	  *kids;
-		hbox = GTK_BIN(button)->child;
+		hbox = gtk_bin_get_child(GTK_BIN(button));
 		kids = gtk_container_get_children(GTK_CONTAINER(hbox));
 		label = g_list_nth_data(kids, 1);
 		g_list_free(kids);
@@ -802,7 +774,7 @@ static GtkWidget *add_button(GtkWidget *bar, Tool *tool,
 				  (gpointer) tool->name);
 	}
 
-	return button;
+	return GTK_WIDGET(button);
 }
 
 static void toggle_selected(GtkToggleButton *widget, gpointer data)
@@ -820,13 +792,13 @@ static gboolean drag_motion(GtkWidget		*widget,
                             guint		time,
 			    FilerWindow		*filer_window)
 {
-	GdkDragAction	action = context->suggested_action;
+	GdkDragAction	action = gdk_drag_context_get_suggested_action(context);
 	DropDest	dest;
 	gpointer	type = (gpointer) drop_dest_dir;
 
 	dest = (DropDest) g_object_get_data(G_OBJECT(widget), "toolbar_dest");
 
-	if ((context->actions & GDK_ACTION_ASK) && o_dnd_left_menu.int_value &&
+	if ((gdk_drag_context_get_actions(context) & GDK_ACTION_ASK) && o_dnd_left_menu.int_value &&
 		dest != DROP_BOOKMARK)
 	{
 		guint state;
@@ -916,24 +888,24 @@ static void option_notify(void)
 
 static void update_tools(Option *option)
 {
-	GList	*next, *kids;
+	gint i;
 
-	kids = gtk_container_get_children(GTK_CONTAINER(option->widget));
-
-	for (next = kids; next; next = next->next)
+	for (i = 0; i < gtk_toolbar_get_n_items(GTK_TOOLBAR(option->widget)); ++i)
 	{
-		GtkToggleButton	*kid = (GtkToggleButton *) next->data;
+		GtkToolItem *kid = gtk_toolbar_get_nth_item(GTK_TOOLBAR(option->widget), i);
 		guchar		*name;
+
+		if (!G_TYPE_CHECK_INSTANCE_TYPE(kid, gtk_toggle_tool_button_get_type())) {
+			continue;
+		}
 
 		name = g_object_get_data(G_OBJECT(kid), "tool_name");
 
 		g_return_if_fail(name != NULL);
 
-		gtk_toggle_button_set_active(kid,
+		gtk_toggle_tool_button_set_active(GTK_TOGGLE_TOOL_BUTTON(kid),
 					 !in_list(name, option->value));
 	}
-
-	g_list_free(kids);
 }
 
 static guchar *read_tools(Option *option)

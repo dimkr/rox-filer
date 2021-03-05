@@ -23,6 +23,7 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#include <gdk/gdkkeysyms-compat.h>
 
 #include "global.h"
 
@@ -42,7 +43,6 @@
 #include "menu.h"
 #include "options.h"
 #include "cell_icon.h"
-#include "cell_text.h"
 
 /* These are the column numbers in the ListStore */
 #define COL_LEAF   0
@@ -124,11 +124,11 @@ static void details_set_sort_func(GtkTreeSortable          *sortable,
 			          gint                    sort_column_id,
 			          GtkTreeIterCompareFunc  func,
 			          gpointer                data,
-			          GtkDestroyNotify        destroy);
+			          GDestroyNotify          destroy);
 static void details_set_default_sort_func(GtkTreeSortable        *sortable,
 				          GtkTreeIterCompareFunc  func,
 				          gpointer                data,
-				          GtkDestroyNotify        destroy);
+				          GDestroyNotify          destroy);
 static gboolean details_has_default_sort_func(GtkTreeSortable *sortable);
 static void view_details_sortable_init(GtkTreeSortableIface *iface);
 static void set_selected(ViewDetails *view_details, int i, gboolean selected);
@@ -610,7 +610,7 @@ static void details_set_sort_func(GtkTreeSortable          *sortable,
 			          gint                    sort_column_id,
 			          GtkTreeIterCompareFunc  func,
 			          gpointer                data,
-			          GtkDestroyNotify        destroy)
+			          GDestroyNotify          destroy)
 {
 	g_assert_not_reached();
 }
@@ -618,7 +618,7 @@ static void details_set_sort_func(GtkTreeSortable          *sortable,
 static void details_set_default_sort_func(GtkTreeSortable        *sortable,
 				          GtkTreeIterCompareFunc  func,
 				          gpointer                data,
-				          GtkDestroyNotify        destroy)
+				          GDestroyNotify          destroy)
 {
 	g_assert_not_reached();
 }
@@ -760,7 +760,7 @@ static void select_lasso(ViewDetails *view_details, GdkFunction fn)
 
 	range[0] = view_details->lasso_start_index;
 	range[1] = get_lasso_index(view_details,
-			      view_details->drag_box_y[1] - adj->value);
+			      view_details->drag_box_y[1] - gtk_adjustment_get_value(adj));
 	range[2] = fn;
 
 	if (range[0] == range[1])
@@ -816,7 +816,7 @@ static gint view_details_motion_notify(GtkWidget *widget, GdkEventMotion *event)
 	{
 		GtkAdjustment	*adj;
 		adj = gtk_tree_view_get_vadjustment(tree);
-		set_lasso(view_details, event->x, event->y + adj->value);
+		set_lasso(view_details, event->x, event->y + gtk_adjustment_get_value(adj));
 		return TRUE;
 	}
 
@@ -830,16 +830,17 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 	GdkRectangle focus_rectangle;
 	ViewDetails *view_details = (ViewDetails *) widget;
 	gboolean    had_cursor;
+	GtkAllocation allocation;
 
-	had_cursor = (GTK_WIDGET_FLAGS(widget) & GTK_HAS_FOCUS) != 0;
+	had_cursor = gtk_widget_has_focus(widget);
 
 	if (view_details->filer_window->selection_state == GTK_STATE_SELECTED)
-		GTK_WIDGET_SET_FLAGS(widget, GTK_HAS_FOCUS);
-	else
-		GTK_WIDGET_UNSET_FLAGS(widget, GTK_HAS_FOCUS);
+		gtk_widget_grab_focus(widget);
+	else // TODO: is this equivalent to GTK_WIDGET_UNSET_FLAGS(widget, GTK_HAS_FOCUS)?
+		gtk_widget_grab_focus(gtk_widget_get_parent(widget));
 	GTK_WIDGET_CLASS(parent_class)->expose_event(widget, event);
 	if (had_cursor)
-		GTK_WIDGET_SET_FLAGS(widget, GTK_HAS_FOCUS);
+		gtk_widget_grab_focus(widget);
 
 	if (event->window != gtk_tree_view_get_bin_window(tree))
 		return FALSE;	/* Not the main area */
@@ -875,13 +876,15 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 				view_details->drag_box_x[0]);
 		height = abs(view_details->drag_box_y[1] -
 				view_details->drag_box_y[0]);
-		y -= adj->value;
+		y -= gtk_adjustment_get_value(adj);
 
 		if (width && height)
 			gdk_draw_rectangle(event->window,
-				widget->style->fg_gc[GTK_STATE_NORMAL],
+				gtk_widget_get_style(widget)->fg_gc[GTK_STATE_NORMAL],
 				FALSE, x, y, width - 1, height - 1);
 	}
+
+	gtk_widget_get_allocation(widget, &allocation);
 
 	if (view_details->wink_item != -1 && view_details->wink_step & 1)
 	{
@@ -897,9 +900,9 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 		if (wink_area.height)
 		{
 			/* (visible) */
-			wink_area.width = widget->allocation.width;
+			wink_area.width = allocation.width;
 			gdk_draw_rectangle(event->window,
-				widget->style->fg_gc[GTK_STATE_NORMAL],
+				gtk_widget_get_style(widget)->fg_gc[GTK_STATE_NORMAL],
 					FALSE,
 					wink_area.x + 1,
 					wink_area.y + 1,
@@ -917,9 +920,9 @@ static gboolean view_details_expose(GtkWidget *widget, GdkEventExpose *event)
 	if (!focus_rectangle.height)
 		return FALSE;	/* Off screen */
 
-	focus_rectangle.width = widget->allocation.width;
+	focus_rectangle.width = allocation.width;
 
-	gtk_paint_focus(widget->style,
+	gtk_paint_focus(gtk_widget_get_style(widget),
 			event->window,
 			GTK_STATE_NORMAL,
 			NULL,
@@ -1020,7 +1023,7 @@ static void view_details_class_init(gpointer gclass, gpointer data)
 static gboolean block_focus(GtkWidget *button, GtkDirectionType dir,
 			    ViewDetails *view_details)
 {
-	GTK_WIDGET_UNSET_FLAGS(button, GTK_CAN_FOCUS);
+	gtk_widget_set_can_focus(button, FALSE);
 	return FALSE;
 }
 
@@ -1067,14 +1070,14 @@ static void set_column_mono_font(GtkWidget *widget, GObject *object)
 }
 
 #define ADD_TEXT_COLUMN(name, model_column) \
-	cell = cell_text_new();	\
+	cell = gtk_cell_renderer_text_new();	\
 	column = gtk_tree_view_column_new_with_attributes(name, cell, \
 					    "text", model_column,	\
 					    "foreground-gdk", COL_COLOUR, \
 					    "weight", COL_WEIGHT, 	\
 					    NULL);			\
 	gtk_tree_view_append_column(treeview, column);			\
-	g_signal_connect(column->button, "grab-focus",			\
+	g_signal_connect(gtk_tree_view_column_get_button(column), "grab-focus",			\
 			G_CALLBACK(block_focus), view_details);
 
 static void view_details_init(GTypeInstance *object, gpointer gclass)
@@ -1744,9 +1747,11 @@ static void redraw_wink_area(ViewDetails *view_details)
 	if (wink_area.height)
 	{
 		GdkWindow *window;
+		GtkAllocation allocation;
 		window = gtk_tree_view_get_bin_window(tree);
 
-		wink_area.width = GTK_WIDGET(tree)->allocation.width;
+		gtk_widget_get_allocation(GTK_WIDGET(tree), &allocation);
+		wink_area.width = allocation.width;
 		gdk_window_invalidate_rect(window, &wink_area, FALSE);
 	}
 }
@@ -1875,7 +1880,7 @@ static void set_lasso(ViewDetails *view_details, int x, int y)
 
 		adj = gtk_tree_view_get_vadjustment((GtkTreeView *)
 							view_details);
-		area.y -= adj->value;
+		area.y -= gtk_adjustment_get_value(adj);
 		gdk_window_invalidate_rect(window, &area, FALSE);
 	}
 }
@@ -1894,7 +1899,7 @@ static void view_details_start_lasso_box(ViewIface *view, GdkEventButton *event)
 
 	view_details->drag_box_x[0] = view_details->drag_box_x[1] = event->x;
 	view_details->drag_box_y[0] = view_details->drag_box_y[1] = event->y +
-								adj->value;
+								gtk_adjustment_get_value(adj);
 	view_details->lasso_box = TRUE;
 }
 
@@ -2093,7 +2098,7 @@ static gboolean view_details_auto_scroll_callback(ViewIface *view)
 	gdk_drawable_get_size(window, &w, NULL);
 
 	adj = gtk_range_get_adjustment(scrollbar);
-	h = adj->page_size;
+	h = gtk_adjustment_get_page_size(adj);
 
 	if ((x < 0 || x > w || y < 0 || y > h) && !view_details->lasso_box)
 		return FALSE;		/* Out of window - stop */
@@ -2105,13 +2110,13 @@ static gboolean view_details_auto_scroll_callback(ViewIface *view)
 
 	if (diff)
 	{
-		int	old = adj->value;
+		int	old = gtk_adjustment_get_value(adj);
 		int	value = old + diff;
 
-		value = CLAMP(value, 0, adj->upper - adj->page_size);
+		value = CLAMP(value, 0, gtk_adjustment_get_upper(adj) - gtk_adjustment_get_page_size(adj));
 		gtk_adjustment_set_value(adj, value);
 
-		if (adj->value != old)
+		if (gtk_adjustment_get_value(adj) != old)
 			dnd_spring_abort();
 	}
 
